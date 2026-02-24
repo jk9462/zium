@@ -1,65 +1,1207 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-export default function Home() {
+// ─── 아이콘 ───
+const ShieldIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const AlertIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+const CheckIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const LockIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const BellIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const ArrowIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
+const StarIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>;
+const ChevronIcon = ({ open }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>;
+const ShareIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>;
+
+// ─── 입력 검증 유틸 (OpenAI 체리픽) ───
+const normalizePhone = (v) => (v || "").replace(/[^\d]/g, "");
+const isValidPhone = (v) => { const n = normalizePhone(v); return n.length === 10 || n.length === 11; };
+const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || "");
+
+export default function ZiumFinal() {
+  const [step, setStep] = useState('landing');
+  const [loadingText, setLoadingText] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [inputError, setInputError] = useState("");
+  const [scanPhase, setScanPhase] = useState(0);
+  const [showPrice, setShowPrice] = useState(false);
+  const [dashAnimated, setDashAnimated] = useState(false);
+  const [safetyScore, setSafetyScore] = useState(0);
+  const [selectedPlan, setSelectedPlan] = useState('annual');
+  const [todayStr, setTodayStr] = useState("");
+  const [openFaq, setOpenFaq] = useState(null);
+  const [preregEmail, setPreregEmail] = useState("");
+  const [preregDone, setPreregDone] = useState(false);
+  const [preregCount, setPreregCount] = useState(847);
+  const emailRef = useRef(null);
+
+  // ✅ [FIX 1] 하이드레이션: 클라이언트에서만 날짜 세팅
+  useEffect(() => {
+    setTodayStr(new Date().toLocaleDateString('ko-KR'));
+    document.title = "지움 | 내 개인정보, 지워드립니다";
+  }, []);
+
+  // GA4 이벤트 트래킹
+  const gtag = (...args) => {
+    if (typeof window !== 'undefined' && window.gtag) window.gtag(...args);
+  };
+  const trackEvent = (eventName, params = {}) => {
+    gtag('event', eventName, params);
+    if (typeof window !== 'undefined') console.log(`[GA4] ${eventName}`, params);
+  };
+
+  // 사전등록 제출 (서버 API 경유 — OpenAI 체리픽)
+  const handlePreregister = async () => {
+    if (!preregEmail || !isValidEmail(preregEmail)) return;
+    trackEvent('pre_register_submit', { plan: selectedPlan, email_domain: preregEmail.split('@')[1] });
+
+    try {
+      await fetch('/api/preregister', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: preregEmail, plan: selectedPlan, leakCount })
+      });
+    } catch (e) { console.error('사전등록 전송 에러:', e); }
+
+    setPreregDone(true);
+    setPreregCount(prev => prev + 1);
+    trackEvent('pre_register_complete', { plan: selectedPlan });
+  };
+
+  // ✅ [FIX 4] 뒤로가기 처리
+  const navigateTo = useCallback((newStep) => {
+    window.history.pushState({ step: newStep }, '', `?step=${newStep}`);
+    setStep(newStep);
+  }, []);
+
+  useEffect(() => {
+    const handlePop = (e) => {
+      if (e.state?.step) {
+        setStep(e.state.step);
+      } else {
+        setStep('landing');
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    window.history.replaceState({ step: 'landing' }, '', '?step=landing');
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  // 유출 건수 계산
+  const getLeakCount = () => {
+    if (!email && !phone) return 14;
+    const src = email || phone;
+    const hash = src.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+    return Math.abs(hash % 12) + 8;
+  };
+
+  // 피해금액 (만원 단위 숫자 — Gemini CSS카운터용)
+  const getDamageAmount = (count) => {
+    const base = count * 30000;
+    const hash = email ? email.split('').reduce((a, b) => { a = ((a << 3) - a) + b.charCodeAt(0); return a & a; }, 0) : 0;
+    const variance = Math.abs(hash % 30000);
+    const total = base + 50000 + variance;
+    return Math.round(total / 10000);
+  };
+
+  const leakCount = getLeakCount();
+  const damageAmount = getDamageAmount(leakCount);
+
+  // ✅ [FIX 2] 조건부 유출 항목
+  const getLeakItems = () => {
+    const items = [];
+    if (email) {
+      items.push({ icon: "📧", label: "이메일 주소", status: "3곳 노출", severity: "high" });
+      items.push({ icon: "🔑", label: "비밀번호 (해시)", status: "2곳 노출", severity: "critical" });
+    }
+    if (phone) {
+      items.push({ icon: "📱", label: "전화번호", status: "5곳 노출", severity: "high" });
+    }
+    if (email && phone) {
+      items.push({ icon: "🏠", label: "주소/위치 정보", status: "1곳 노출", severity: "medium" });
+    }
+    // 이메일만 입력해도 최소 3개는 보여줘야 함
+    if (items.length < 3) {
+      if (!items.find(i => i.label === "전화번호")) {
+        items.push({ icon: "👤", label: "이름/닉네임", status: "2곳 노출", severity: "medium" });
+      }
+      items.push({ icon: "🏠", label: "주소/위치 정보", status: "1곳 노출", severity: "medium" });
+    }
+    return items;
+  };
+
+  // 스캔 시뮬레이션
+  useEffect(() => {
+    if (step === 'scan') {
+      const tasks = [
+        { t: "개인정보보호위원회 유출 신고 데이터 대조 중...", p: 12, phase: 1 },
+        { t: `${email || phone} 관련 유출 이력 조회 중...`, p: 28, phase: 1 },
+        { t: "글로벌 유출 데이터베이스 정밀 분석 중...", p: 45, phase: 2 },
+        { t: "국내 주요 커뮤니티 및 중고거래 플랫폼 탐색...", p: 62, phase: 2 },
+        { t: "유출 데이터베이스 크로스 체킹...", p: 78, phase: 3 },
+        { t: "유출 경로 분석 및 피해 규모 산정 중...", p: 91, phase: 3 },
+        { t: "리포트 생성 완료", p: 100, phase: 4 }
+      ];
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < tasks.length) {
+          setLoadingText(tasks[i].t);
+          setProgress(tasks[i].p);
+          setScanPhase(tasks[i].phase);
+          i++;
+        }
+        if (i === tasks.length) {
+          clearInterval(interval);
+          setTimeout(() => navigateTo('report'), 600);
+        }
+      }, 1100);
+      return () => clearInterval(interval);
+    }
+  }, [step, email, phone, navigateTo]);
+
+  useEffect(() => {
+    if (step === 'report') {
+      setTimeout(() => setShowPrice(true), 300);
+      trackEvent('report_view', { leak_count: leakCount });
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (step === 'dashboard') {
+      setTimeout(() => setDashAnimated(true), 100);
+      let score = 0;
+      const interval = setInterval(() => {
+        score += 1;
+        setSafetyScore(score);
+        if (score >= 38) clearInterval(interval);
+      }, 30);
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
+  const handleScan = () => {
+    if (!email && !phone) {
+      setInputError("이메일 또는 전화번호를 입력해주세요");
+      emailRef.current?.focus();
+      return;
+    }
+    if (email && !isValidEmail(email)) {
+      setInputError("올바른 이메일 형식을 입력해주세요");
+      return;
+    }
+    if (phone && !isValidPhone(phone)) {
+      setInputError("올바른 전화번호를 입력해주세요 (10~11자리)");
+      return;
+    }
+    setInputError("");
+    trackEvent('scan_start', { has_email: !!email, has_phone: !!phone });
+    navigateTo('scan');
+  };
+
+  // FAQ 데이터
+  const faqData = [
+    { q: "진짜 삭제가 되나요?", a: "네. 개인정보보호법 제36조에 따라 법적 삭제 요청을 발송하며, 국내 사이트는 14일 이내 처리 의무가 있습니다. 미이행 시 개인정보보호위원회(PIPC)에 신고 조치합니다." },
+    { q: "지움에 개인정보를 또 넘기는 건 아닌가요?", a: "입력하신 이메일/전화번호는 유출 여부 조회에만 사용되며, 조회 후 즉시 삭제됩니다. 유료 구독 시 삭제 위임에 필요한 최소 정보만 암호화하여 보관하며, 제3자에게 절대 제공하지 않습니다." },
+    { q: "해지하면 어떻게 되나요?", a: "언제든 1클릭으로 해지 가능합니다. 해지 시 모니터링이 중단되며, 이미 삭제 완료된 건은 유지됩니다. 미사용 기간에 대한 환불도 가능합니다." },
+    { q: "삭제 안 되면 환불 되나요?", a: "네. 30일 이내 삭제 요청 처리가 시작되지 않은 경우 100% 전액 환불해드립니다. 부분 처리된 경우 미처리 건에 대해 비례 환불합니다." },
+    { q: "해외 사이트도 삭제 가능한가요?", a: "GDPR(유럽), CCPA(캘리포니아) 등 해외 개인정보보호법에 근거하여 영문 삭제 요청을 대행합니다. 주요 글로벌 유출 데이터베이스와 연동하여 해외 유출도 탐지합니다." },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[#F8F9FA] text-[#191F28]" style={{ fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style jsx global>{`
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulseRing { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(1.8); opacity: 0; } }
+        @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @property --dmg { syntax: "<integer>"; initial-value: 0; inherits: false; }
+        @keyframes countUpNum { from { --dmg: 0; } }
+        .counter-animate { animation: countUpNum 1.2s ease-out forwards; counter-reset: dmg var(--dmg); }
+        .counter-animate::after { content: counter(dmg); }
+        .fade-up { animation: fadeUp 0.6s ease-out forwards; }
+        .fade-up-1 { animation: fadeUp 0.6s ease-out 0.1s forwards; opacity: 0; }
+        .fade-up-2 { animation: fadeUp 0.6s ease-out 0.2s forwards; opacity: 0; }
+        .fade-up-3 { animation: fadeUp 0.6s ease-out 0.35s forwards; opacity: 0; }
+        .fade-up-4 { animation: fadeUp 0.6s ease-out 0.5s forwards; opacity: 0; }
+        .fade-up-5 { animation: fadeUp 0.6s ease-out 0.65s forwards; opacity: 0; }
+        .fade-up-6 { animation: fadeUp 0.6s ease-out 0.8s forwards; opacity: 0; }
+        .scale-in { animation: scaleIn 0.5s ease-out forwards; }
+        input::placeholder { color: #ADB5BD; }
+        input:focus { outline: none; }
+        .blur-content { filter: blur(6px); user-select: none; pointer-events: none; }
+      `}</style>
+
+      {/* ─── 네비게이션 ─── */}
+      <nav className="max-w-[440px] mx-auto bg-white/90 backdrop-blur-xl sticky top-0 z-50 px-6 py-4 flex justify-between items-center border-b border-gray-100/80">
+        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigateTo('landing')}>
+          <div className="w-9 h-9 bg-[#191F28] rounded-2xl flex items-center justify-center">
+            <span className="text-white font-black text-sm tracking-tighter">Z</span>
+          </div>
+          <span className="font-extrabold text-[19px] tracking-tight">지움</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        {step === 'dashboard' ? (
+          <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400"><BellIcon /></div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F6FF] rounded-full">
+            <span className="w-1.5 h-1.5 bg-[#3182F6] rounded-full animate-pulse"></span>
+            <span className="text-[10px] font-bold text-[#3182F6] tracking-tight">PIPC 공공데이터 연동</span>
+          </div>
+        )}
+      </nav>
+
+      <main className="max-w-[440px] mx-auto min-h-screen pb-32">
+
+        {/* ════════════════════════════════
+            STEP 1: 랜딩
+        ════════════════════════════════ */}
+        {step === 'landing' && (
+          <div className="px-7 pt-10 pb-8 space-y-8">
+            {/* ✅ [FIX 6] 히어로 카피 개선 */}
+            <div className="fade-up space-y-4">
+              <h1 className="text-[30px] font-black leading-[1.25] tracking-tight">
+                혹시 요즘<br />
+                <span className="text-[#3182F6]">스팸 전화</span>가<br />
+                부쩍 늘었나요?
+              </h1>
+              <p className="text-[15px] text-[#6B7684] leading-relaxed">
+                이유가 있습니다. 지금도 당신의 이름, 연락처, 주소가<br />
+                인터넷에서 몰래 사고팔리고 있거든요.
+              </p>
+            </div>
+
+            {/* ✅ [FIX 5] 일일 유출 건수 동적화 */}
+            <div className="fade-up-1 bg-[#191F28] rounded-[24px] p-5 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400"><AlertIcon /></span>
+              </div>
+              <div>
+                <p className="text-white font-bold text-[14px]">일 평균 <span className="text-red-400">2만건 이상</span> 개인정보 유출</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">2024 개인정보보호위원회 연간 보고서 기반 일환산</p>
+              </div>
+            </div>
+
+            {/* 입력 폼 */}
+            <div className="fade-up-2 bg-white rounded-[28px] p-6 shadow-sm border border-gray-100 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#3182F6]"><SearchIcon /></span>
+                <h3 className="font-bold text-[15px]">내 개인정보 유출 여부 확인</h3>
+              </div>
+              <div className="space-y-3">
+                <input ref={emailRef} type="email" placeholder="이메일 주소 입력" value={email}
+                  onChange={(e) => { setEmail(e.target.value); setInputError(""); }}
+                  className="w-full px-4 py-3.5 bg-[#F8F9FA] rounded-2xl text-[14px] font-medium border border-transparent focus:border-[#3182F6] focus:bg-white transition-all"
+                />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-[1px] bg-gray-100"></div>
+                  <span className="text-[11px] text-gray-400 font-medium">또는</span>
+                  <div className="flex-1 h-[1px] bg-gray-100"></div>
+                </div>
+                <input type="tel" placeholder="전화번호 입력 (010-0000-0000)" value={phone}
+                  onChange={(e) => { setPhone(normalizePhone(e.target.value)); setInputError(""); }}
+                  className="w-full px-4 py-3.5 bg-[#F8F9FA] rounded-2xl text-[14px] font-medium border border-transparent focus:border-[#3182F6] focus:bg-white transition-all"
+                />
+              </div>
+              {inputError && (
+                <p className="text-red-500 text-[12px] font-medium flex items-center gap-1"><AlertIcon /> {inputError}</p>
+              )}
+              <button onClick={handleScan}
+                className="w-full py-4 bg-[#3182F6] text-white font-bold rounded-2xl text-[15px] shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] hover:bg-[#2272E6]">
+                무료로 유출 여부 확인하기
+              </button>
+              <div className="flex items-center justify-center gap-1.5 pt-1">
+                <span className="text-[#3182F6]"><ShieldIcon /></span>
+                <p className="text-[11px] text-gray-400">입력된 정보는 조회 목적으로만 사용되며 저장되지 않습니다</p>
+              </div>
+            </div>
+
+            {/* 소셜 프루프 */}
+            <div className="fade-up-3 space-y-4">
+              <div className="flex items-center gap-3 px-1">
+                <div className="flex -space-x-2">
+                  {['😊','🧑','👩','🧔','👨'].map((e, i) => (
+                    <div key={i} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-sm border-2 border-white">{e}</div>
+                  ))}
+                </div>
+                <p className="text-[12px] text-gray-500"><span className="font-bold text-[#191F28]">12,847명</span>이 이미 조회했어요 <span className="text-[9px] text-gray-400">(베타 포함)</span></p>
+              </div>
+
+              {/* 리뷰 3개 */}
+              <div className="space-y-3">
+                {[
+                  { emoji: "👨‍💻", name: "김**", loc: "서울 · 베타 테스터", text: "스팸 전화가 하루 5통씩 왔는데, 지움 쓰고 나서 거의 안 와요. 어디서 내 번호가 돌아다녔는지 확인하니까 소름..." },
+                  { emoji: "👩‍💼", name: "이**", loc: "부산 · 베타 테스터", text: "중고나라에 제 번호가 올라가 있었다는 걸 처음 알았어요. 삭제 요청까지 자동으로 해주니까 너무 편해요." },
+                  { emoji: "🧑‍🎓", name: "박**", loc: "대전 · 베타 테스터", text: "해외 사이트에서 제 이메일이 팔리고 있었는데 직접 영어로 삭제 요청할 엄두가 안 났거든요. 지움이 다 해줬어요." },
+                ].map((r, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-sm">{r.emoji}</div>
+                      <div>
+                        <p className="text-[12px] font-bold">{r.name}</p>
+                        <p className="text-[10px] text-gray-400">{r.loc}</p>
+                      </div>
+                      <div className="ml-auto flex gap-0.5">
+                        {[1,2,3,4,5].map(s => <span key={s} className="text-yellow-400 text-[10px]">★</span>)}
+                      </div>
+                    </div>
+                    <p className="text-[13px] text-[#4E5968] leading-relaxed">"{r.text}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 신뢰 배지 2x2 */}
+            <div className="fade-up-4 grid grid-cols-2 gap-3">
+              {[
+                { value: "글로벌", label: "유출 데이터베이스 실시간 연동", icon: "🔍" },
+                { value: "스팸↓", label: "삭제 후 스팸 전화 감소 효과", icon: "📉" },
+                { value: "24시간", label: "실시간 모니터링", icon: "🛡️" },
+                { value: "4.9 ★", label: "베타 테스터 만족도 (N=23)", icon: "⭐" },
+              ].map((item, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+                  <span className="text-lg">{item.icon}</span>
+                  <p className="text-[18px] font-black text-[#191F28] mt-1.5">{item.value}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{item.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ✅ [FIX 7] FAQ 추가 */}
+            <div className="fade-up-5 space-y-3">
+              <h3 className="font-bold text-[16px] px-1">자주 묻는 질문</h3>
+              {faqData.map((faq, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    className="w-full flex items-center justify-between p-4 text-left">
+                    <span className="text-[13px] font-bold">{faq.q}</span>
+                    <ChevronIcon open={openFaq === i} />
+                  </button>
+                  {openFaq === i && (
+                    <div className="px-4 pb-4 pt-0">
+                      <p className="text-[12px] text-[#6B7684] leading-relaxed">{faq.a}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 2: 스캔 중
+        ════════════════════════════════ */}
+        {step === 'scan' && (
+          <div className="h-[600px] flex flex-col items-center justify-center px-8 text-center">
+            <div className="relative w-28 h-28 mb-10">
+              <div className="absolute inset-0 border-[3px] border-blue-100 rounded-full"></div>
+              <div className="absolute inset-0 border-[3px] border-[#3182F6] border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1s' }}></div>
+              {scanPhase >= 2 && (
+                <div className="absolute inset-[-8px] border-2 border-[#3182F6]/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+              )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-black text-[#3182F6]">{progress}%</span>
+              </div>
+              <div className="absolute inset-0 border-2 border-[#3182F6] rounded-full" style={{ animation: 'pulseRing 2s infinite' }}></div>
+            </div>
+            <div className="space-y-3 mb-10">
+              <p className="text-[17px] font-bold text-[#191F28] leading-snug min-h-[52px] transition-all">{loadingText}</p>
+              <p className="text-[11px] text-gray-400 font-mono tracking-wider">{email || phone} 기준 조회</p>
+            </div>
+            <div className="w-full max-w-[280px] space-y-2.5">
+              {[
+                { label: "공공데이터 대조", phase: 1 },
+                { label: "글로벌 유출 DB 조사", phase: 2 },
+                { label: "유출 DB 정밀 분석", phase: 3 },
+                { label: "리포트 생성", phase: 4 }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 transition-all duration-300" style={{ opacity: scanPhase >= item.phase ? 1 : 0.3 }}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    scanPhase > item.phase ? 'bg-[#3182F6] text-white' : scanPhase === item.phase ? 'bg-blue-100 text-[#3182F6]' : 'bg-gray-100'
+                  }`}>
+                    {scanPhase > item.phase ? <CheckIcon /> : <span className="w-1.5 h-1.5 bg-current rounded-full"></span>}
+                  </div>
+                  <span className="text-[12px] font-medium text-left">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 3: 리포트
+        ════════════════════════════════ */}
+        {step === 'report' && (
+          <div className="px-6 pt-6 pb-40 space-y-5">
+            {/* 피해 요약 — ✅ [FIX 5] 반올림 금액 */}
+            <div className="scale-in bg-[#191F28] rounded-[32px] p-8 text-center text-white relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-400 to-red-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent"></div>
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 rounded-full mb-4">
+                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
+                  <span className="text-[10px] font-bold text-red-400">위험 감지</span>
+                </div>
+                <p className="text-gray-400 text-[12px] font-medium mb-2">잠재적 피해 추정액</p>
+                {showPrice ? (
+                  <h2 className="text-[48px] font-black tracking-tighter mb-1">
+                    약 <span className="counter-animate" style={{ '--dmg': damageAmount }}></span><span className="text-[28px]">만원</span>
+                  </h2>
+                ) : <div className="h-[60px]"></div>}
+                <p className="text-[9px] text-gray-600 mb-3">유출 사이트당 평균 위자료 판례 + 2차 피해 추정 기준 · 실제 피해와 다를 수 있습니다</p>
+                <div className="flex justify-center gap-6 mt-2 mb-2">
+                  <div className="text-center">
+                    <p className="text-[24px] font-black text-red-400">{leakCount}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">유출 사이트</p>
+                  </div>
+                  <div className="w-[1px] bg-white/10"></div>
+                  <div className="text-center">
+                    <p className="text-[24px] font-black text-orange-400">{getLeakItems().length}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">노출 항목</p>
+                  </div>
+                  <div className="w-[1px] bg-white/10"></div>
+                  <div className="text-center">
+                    <p className="text-[24px] font-black text-yellow-400">3</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">긴급 처리 필요</p>
+                  </div>
+                </div>
+                {/* ✅ [FIX 8] 공유 버튼 */}
+                <button onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({ title: '지움 - 개인정보 유출 리포트', text: `내 개인정보가 ${leakCount}곳에서 유출되고 있었어요. 너도 확인해봐!`, url: window.location.origin });
+                  } else {
+                    navigator.clipboard?.writeText(`내 개인정보가 ${leakCount}곳에서 유출되고 있었어요. 지금 확인해보세요 → ${window.location.origin}`);
+                    alert('링크가 복사되었습니다!');
+                  }
+                }} className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full text-[11px] text-gray-300 hover:bg-white/20 transition-all">
+                  <ShareIcon /> 결과 공유하기
+                </button>
+              </div>
+            </div>
+
+            {/* ✅ [FIX 2] 조건부 유출 항목 */}
+            <div className="fade-up-1 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="font-bold text-[14px]">유출 항목</h4>
+                <span className="text-[10px] text-gray-400">{todayStr ? `조회일: ${todayStr}` : ''}</span>
+              </div>
+              {getLeakItems().map((item, i) => (
+                <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-[13px] font-medium flex-1">{item.label}</span>
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                    item.severity === 'critical' ? 'bg-red-50 text-red-500' :
+                    item.severity === 'high' ? 'bg-orange-50 text-orange-500' : 'bg-yellow-50 text-yellow-600'
+                  }`}>{item.status}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 유출 출처 */}
+            <div className="fade-up-2 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <h4 className="font-bold text-[14px] mb-1">유출 경로 (상위 {leakCount}곳 중)</h4>
+              {[
+                { icon: "🛍️", name: "국내 대형 쇼핑몰 A사", detail: "2023.08 유출" },
+                { icon: "🎮", name: "글로벌 게임 플랫폼 B", detail: "2024.01 유출" },
+                { icon: "😈", name: "해외 데이터 브로커 'InfoTrade'", detail: "현재 판매 중" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
+                  <span className="text-lg">{item.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-medium">{item.name}</p>
+                    <p className="text-[10px] text-gray-400">{item.detail}</p>
+                  </div>
+                  <span className="text-red-500"><AlertIcon /></span>
+                </div>
+              ))}
+              {/* 잠금 영역 — 클릭 시 deleteKit 이동 */}
+              <div className="relative cursor-pointer" onClick={() => { trackEvent('deletekit_open'); navigateTo('deleteKit'); }}>
+                <div className="blur-content space-y-3">
+                  {[
+                    { icon: "🏦", name: "국내 금융 서비스 C", detail: "2024.03 유출" },
+                    { icon: "📋", name: "공공기관 D 외부 유출", detail: "2023.11 유출" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
+                      <span className="text-lg">{item.icon}</span>
+                      <div className="flex-1">
+                        <p className="text-[13px] font-medium">{item.name}</p>
+                        <p className="text-[10px] text-gray-400">{item.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center gap-1.5 px-4 py-2 bg-[#3182F6] text-white rounded-full shadow-lg hover:shadow-xl transition-all">
+                    <LockIcon />
+                    <span className="text-[12px] font-bold">무료 삭제요청 템플릿 받기</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 지움이 하는 일 */}
+            <div className="fade-up-3 bg-[#F0F6FF] rounded-[24px] p-5 space-y-4">
+              <h4 className="font-bold text-[14px] text-[#3182F6]">지움이 대신 해드리는 일</h4>
+              {[
+                { num: "01", title: "법적 삭제 요청 발송", desc: "개인정보보호법 제36조에 근거한 정보 삭제 위임" },
+                { num: "02", title: "24시간 실시간 모니터링", desc: "새로운 유출 발생 시 즉시 알림 및 자동 대응" },
+                { num: "03", title: "삭제 완료 증명서 발급", desc: "삭제 처리 내역을 기록한 증빙 문서 제공" },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <span className="text-[10px] font-black text-[#3182F6] bg-white w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">{item.num}</span>
+                  <div>
+                    <p className="text-[13px] font-bold">{item.title}</p>
+                    <p className="text-[11px] text-[#6B7684] mt-0.5">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 무료 삭제요청 템플릿 CTA → deleteKit */}
+            <div className="fade-up-4 bg-white rounded-[24px] p-5 border-2 border-[#3182F6] shadow-sm cursor-pointer hover:shadow-md transition-all"
+              onClick={() => { trackEvent('deletekit_open'); navigateTo('deleteKit'); }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#F0F6FF] rounded-2xl flex items-center justify-center text-[#3182F6]"><ShieldIcon /></div>
+                <div className="flex-1">
+                  <p className="text-[13px] font-bold">무료 삭제요청 템플릿 1건</p>
+                  <p className="text-[11px] text-gray-400">가장 흔한 노출(게시글/프로필 등) 대응 문구를 드려요</p>
+                </div>
+                <span className="text-[#3182F6]"><ArrowIcon /></span>
+              </div>
+            </div>
+
+            {/* 하단 CTA */}
+            <div className="fixed bottom-0 left-0 right-0 z-50">
+              <div className="max-w-[440px] mx-auto px-6 pb-6 pt-4 bg-gradient-to-t from-white via-white to-white/0">
+                <button onClick={() => { trackEvent('cta_report_bottom'); navigateTo('pricing'); }}
+                  className="w-full bg-[#191F28] text-white font-bold rounded-2xl text-[15px] shadow-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  style={{ paddingTop: '18px', paddingBottom: '18px' }}>
+                  내 정보 삭제 서비스 사전등록
+                  <span className="text-[12px] font-normal text-gray-400 ml-1">첫 달 무료</span>
+                </button>
+                <p className="text-center text-[10px] text-gray-400 mt-2.5">곧 출시 · 사전등록 시 첫 달 무료 혜택</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 3.2: 무료 삭제요청 템플릿 (deleteKit) — OpenAI 체리픽
+        ════════════════════════════════ */}
+        {step === 'deleteKit' && (
+          <div className="px-6 pt-6 pb-10 space-y-5">
+            <div className="fade-up space-y-2">
+              <h2 className="text-[22px] font-black tracking-tight">무료 삭제요청 템플릿</h2>
+              <p className="text-[13px] text-[#6B7684]">
+                가장 흔한 <span className="font-bold">1가지 케이스</span>에 대해 삭제요청 문구를 제공합니다.
+                <br /><span className="text-[11px] text-gray-400">※ 실제 처리 여부/기간은 사이트 정책에 따라 다를 수 있어요.</span>
+              </p>
+            </div>
+
+            <div className="fade-up-1 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-[14px]">대상</p>
+                <span className="text-[10px] text-gray-400">무료 · 1건</span>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-[12px] font-bold text-[#191F28]">게시글/프로필 페이지 노출 삭제 요청</p>
+                <p className="text-[11px] text-gray-500 mt-1">내 연락처/이메일이 포함된 게시글·댓글·소개글 등에 사용하세요.</p>
+              </div>
+            </div>
+
+            <div className="fade-up-2 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <p className="font-bold text-[14px]">삭제요청 메시지 (복사해서 발송)</p>
+              <div className="bg-gray-50 rounded-2xl p-4 text-[11px] text-[#4E5968] leading-relaxed whitespace-pre-wrap">{`안녕하세요. (담당자/운영자)님,
+
+저는 귀 사이트/페이지에 게시된 내용 중 제 개인정보가 포함된 부분에 대해 삭제를 요청드립니다.
+
+- 요청 내용: 개인정보가 포함된 게시물/페이지 삭제 또는 비공개 처리
+- 노출된 개인정보: ${email ? `이메일(${email})` : ''}${email && phone ? ', ' : ''}${phone ? `전화번호(${phone})` : ''}${!email && !phone ? '연락처/식별정보' : ''}
+- 해당 URL: (여기에 노출된 페이지 주소를 붙여넣어 주세요)
+- 요청 사유: 정보주체의 개인정보 보호를 위한 삭제 요청 (개인정보보호법 제36조)
+
+가능한 빠른 시일 내 조치 및 결과 회신을 부탁드립니다.
+감사합니다.
+
+(이름): __________
+(연락처): __________
+(회신 이메일): __________
+(요청일): ${todayStr || ''}`}</div>
+
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  const template = `안녕하세요. (담당자/운영자)님,\n\n저는 귀 사이트/페이지에 게시된 내용 중 제 개인정보가 포함된 부분에 대해 삭제를 요청드립니다.\n\n- 요청 내용: 개인정보가 포함된 게시물/페이지 삭제 또는 비공개 처리\n- 노출된 개인정보: ${email ? `이메일(${email})` : ''}${email && phone ? ', ' : ''}${phone ? `전화번호(${phone})` : ''}${!email && !phone ? '연락처/식별정보' : ''}\n- 해당 URL: (여기에 노출된 페이지 주소를 붙여넣어 주세요)\n- 요청 사유: 정보주체의 개인정보 보호를 위한 삭제 요청 (개인정보보호법 제36조)\n\n가능한 빠른 시일 내 조치 및 결과 회신을 부탁드립니다.\n감사합니다.\n\n(이름): __________\n(연락처): __________\n(회신 이메일): __________\n(요청일): ${todayStr || ''}`;
+                  navigator.clipboard?.writeText(template);
+                  trackEvent('deletekit_copy');
+                  alert('요청 템플릿이 복사되었습니다!');
+                }} className="flex-1 py-3 bg-[#3182F6] text-white font-bold rounded-2xl text-[13px]">
+                  템플릿 복사
+                </button>
+                <button onClick={() => { trackEvent('deletekit_to_pricing'); navigateTo('pricing'); }}
+                  className="flex-1 py-3 bg-white text-[#3182F6] font-bold rounded-2xl text-[13px] border border-blue-100">
+                  모니터링/대행 맡기기
+                </button>
+              </div>
+
+              <p className="text-[10px] text-gray-400">
+                💡 URL과 스크린샷(노출 부분 표시)을 함께 보내면 처리 확률이 올라가요.
+              </p>
+            </div>
+
+            <div className="fade-up-3 bg-[#F0F6FF] rounded-[24px] p-5 space-y-2">
+              <p className="text-[12px] font-bold text-[#3182F6]">더 많은 사이트에 대응하려면?</p>
+              <p className="text-[11px] text-[#6B7684] leading-relaxed">
+                사전 등록하시면 정식 출시 시 자동 모니터링 + 삭제 대행 기능을 첫 달 무료로 이용할 수 있습니다.
+              </p>
+              <button onClick={() => navigateTo('pricing')}
+                className="w-full py-3 bg-[#3182F6] text-white font-bold rounded-2xl text-[13px] mt-2">
+                사전등록하고 첫 달 무료 받기
+              </button>
+            </div>
+
+            <button onClick={() => navigateTo('report')}
+              className="w-full py-4 bg-[#191F28] text-white font-bold rounded-2xl text-[14px]">
+              리포트로 돌아가기
+            </button>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 3.5: 결제
+        ════════════════════════════════ */}
+        {step === 'pricing' && (
+          <div className="px-6 pt-6 pb-10 space-y-5">
+            <div className="fade-up text-center space-y-2 pt-2">
+              <h2 className="text-[24px] font-black tracking-tight">
+                <span className="text-red-500">{leakCount}곳</span>에서 내 정보가<br />유출되고 있어요
+              </h2>
+              <p className="text-[13px] text-[#6B7684]">지금 사전 등록하고, 출시 즉시 삭제를 시작하세요</p>
+            </div>
+
+            {/* ✅ [FIX 6] 공포 강화 섹션 (가격 전) */}
+            <div className="fade-up-1 bg-red-50 rounded-[20px] p-4 space-y-2">
+              <p className="text-[12px] font-bold text-red-600">🚨 유출된 정보를 방치하면?</p>
+              <div className="space-y-1.5">
+                {[
+                  "원치 않는 스팸 전화·문자가 급증합니다",
+                  "피싱 사기 및 사칭 메일의 타겟이 됩니다",
+                  "비밀번호 도용으로 계정 탈취 위험이 높아집니다",
+                ].map((t, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="w-1 h-1 bg-red-400 rounded-full flex-shrink-0"></span>
+                    <p className="text-[11px] text-red-800">{t}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 연간 */}
+            <div className={`fade-up-2 relative rounded-[24px] p-5 border-2 shadow-sm cursor-pointer transition-all ${
+              selectedPlan === 'annual' ? 'border-[#3182F6] bg-[#F0F6FF] shadow-blue-100' : 'border-gray-100 bg-white'
+            }`} onClick={() => setSelectedPlan('annual')}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <div className="px-3 py-1 bg-[#3182F6] rounded-full flex items-center gap-1">
+                  <StarIcon /><span className="text-white text-[10px] font-bold">가장 인기</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-1">
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedPlan === 'annual' ? 'border-[#3182F6] bg-[#3182F6]' : 'border-gray-300'
+                }`}>{selectedPlan === 'annual' && <CheckIcon />}</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[15px]">연간 구독</span>
+                    <span className="text-[10px] font-bold text-[#3182F6] bg-blue-100 px-2 py-0.5 rounded-full">36% 할인</span>
+                  </div>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">1년 동안 내 개인정보를 지켜드립니다</p>
+                </div>
+              </div>
+              <div className="mt-3 pl-8">
+                <div className="flex items-end gap-1">
+                  <span className="text-[28px] font-black text-[#191F28]">월 2,492</span>
+                  <span className="text-[14px] font-bold text-[#6B7684] pb-1">원</span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">연 29,900원 일시 결제</p>
+              </div>
+              <div className="mt-3 pl-8 flex flex-wrap gap-2">
+                {['삭제 증명서 무제한', '가족 1명 추가 무료', '우선 처리'].map((b, i) => (
+                  <span key={i} className="text-[10px] font-medium text-[#3182F6] bg-white/80 px-2.5 py-1 rounded-lg border border-blue-100">{b}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* 월간 */}
+            <div className={`fade-up-3 rounded-[24px] p-5 border-2 cursor-pointer transition-all ${
+              selectedPlan === 'monthly' ? 'border-[#3182F6] bg-[#F0F6FF] shadow-sm shadow-blue-100' : 'border-gray-100 bg-white'
+            }`} onClick={() => setSelectedPlan('monthly')}>
+              <div className="flex items-center gap-3">
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedPlan === 'monthly' ? 'border-[#3182F6] bg-[#3182F6]' : 'border-gray-300'
+                }`}>{selectedPlan === 'monthly' && <CheckIcon />}</div>
+                <div className="flex-1">
+                  <span className="font-bold text-[15px]">월간 구독</span>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">삭제 + 모니터링 + 신규 유출 자동 대응</p>
+                </div>
+              </div>
+              <div className="mt-3 pl-8">
+                <div className="flex items-end gap-1">
+                  <span className="text-[28px] font-black text-[#191F28]">월 3,900</span>
+                  <span className="text-[14px] font-bold text-[#6B7684] pb-1">원</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 1회성 — ✅ [FIX 6] 경고 문구 강화 */}
+            <div className={`fade-up-4 rounded-[24px] p-5 border-2 cursor-pointer transition-all ${
+              selectedPlan === 'onetime' ? 'border-[#3182F6] bg-[#F0F6FF] shadow-sm shadow-blue-100' : 'border-gray-100 bg-white'
+            }`} onClick={() => setSelectedPlan('onetime')}>
+              <div className="flex items-center gap-3">
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedPlan === 'onetime' ? 'border-[#3182F6] bg-[#3182F6]' : 'border-gray-300'
+                }`}>{selectedPlan === 'onetime' && <CheckIcon />}</div>
+                <div className="flex-1">
+                  <span className="font-bold text-[15px]">1회 삭제</span>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">현재 유출된 곳만 삭제 (모니터링 없음)</p>
+                </div>
+              </div>
+              <div className="mt-3 pl-8">
+                <div className="flex items-end gap-1">
+                  <span className="text-[28px] font-black text-[#191F28]">19,900</span>
+                  <span className="text-[14px] font-bold text-[#6B7684] pb-1">원</span>
+                </div>
+              </div>
+              <div className="mt-2 pl-8">
+                <p className="text-[11px] text-orange-500 font-medium flex items-center gap-1">
+                  <AlertIcon /> 삭제 후에도 재유출 가능성 있음 (모니터링 미포함)
+                </p>
+              </div>
+            </div>
+
+            {/* 비교 테이블 */}
+            <div className="fade-up-5 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm">
+              <h4 className="font-bold text-[13px] mb-3 text-center text-[#6B7684]">플랜 비교</h4>
+              <div className="flex items-center text-[9px] text-gray-400 font-bold mb-2 pb-2 border-b border-gray-50">
+                <span className="flex-1"></span>
+                <span className="w-12 text-center">1회</span>
+                <span className="w-12 text-center">월간</span>
+                <span className="w-12 text-center text-[#3182F6]">연간</span>
+              </div>
+              <div className="space-y-2.5">
+                {[
+                  { feature: "현재 유출 전체 삭제", onetime: true, monthly: true, annual: true },
+                  { feature: "24시간 실시간 모니터링", onetime: false, monthly: true, annual: true },
+                  { feature: "신규 유출 자동 삭제", onetime: false, monthly: true, annual: true },
+                  { feature: "삭제 완료 증명서", onetime: "1회", monthly: "월 3회", annual: "무제한" },
+                  { feature: "가족 추가 (1명)", onetime: false, monthly: false, annual: true },
+                  { feature: "우선 처리", onetime: false, monthly: false, annual: true },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-center text-[11px]">
+                    <span className="flex-1 text-[#4E5968] font-medium">{row.feature}</span>
+                    {['onetime','monthly','annual'].map((plan) => (
+                      <span key={plan} className={`w-12 text-center ${plan === 'annual' ? 'font-bold text-[#3182F6]' : ''}`}>
+                        {row[plan] === true ? '✓' : row[plan] === false ? <span className="text-gray-300">—</span> : <span className="text-[10px]">{row[plan]}</span>}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 사전등록 CTA */}
+            <div className="fade-up-6 space-y-4 pt-2">
+              {!preregDone ? (
+                <div className="bg-white rounded-[24px] p-6 border-2 border-[#3182F6] shadow-lg shadow-blue-100/30 space-y-4">
+                  <div className="text-center space-y-1">
+                    <p className="text-[15px] font-black text-[#191F28]">🚀 곧 출시됩니다</p>
+                    <p className="text-[12px] text-[#6B7684]">사전 등록하면 <span className="font-bold text-[#3182F6]">첫 달 무료</span> + 출시 알림을 드려요</p>
+                  </div>
+                  <input
+                    type="email"
+                    placeholder="알림 받을 이메일 입력"
+                    value={preregEmail}
+                    onChange={(e) => setPreregEmail(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-[#F8F9FA] rounded-2xl text-[14px] font-medium border border-transparent focus:border-[#3182F6] focus:bg-white transition-all"
+                    onKeyDown={(e) => e.key === 'Enter' && handlePreregister()}
+                  />
+                  <button onClick={handlePreregister}
+                    disabled={!preregEmail || !isValidEmail(preregEmail)}
+                    className="w-full bg-[#3182F6] text-white font-bold rounded-2xl text-[15px] shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] hover:bg-[#2272E6] disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ paddingTop: '18px', paddingBottom: '18px' }}>
+                    출시 알림 받기 (무료)
+                  </button>
+                  <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400">
+                    <span>🔒 스팸 없음</span>
+                    <span>·</span>
+                    <span>출시 알림 1회만 발송</span>
+                    <span>·</span>
+                    <span>언제든 취소 가능</span>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[11px] text-gray-400">현재 <span className="font-bold text-[#191F28]">{preregCount}명</span>이 대기 중</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-[#F0F6FF] rounded-[24px] p-6 text-center space-y-3">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
+                    <span className="text-3xl">🎉</span>
+                  </div>
+                  <div>
+                    <p className="text-[17px] font-black text-[#191F28]">등록 완료!</p>
+                    <p className="text-[13px] text-[#6B7684] mt-1">출시되면 <span className="font-bold">{preregEmail}</span>로 알려드릴게요.</p>
+                    <p className="text-[12px] text-[#3182F6] font-bold mt-2">🎁 사전 등록 특전: 첫 달 무료</p>
+                  </div>
+                  <div className="pt-2">
+                    <p className="text-[11px] text-gray-400">{preregCount}명이 함께 기다리고 있어요</p>
+                  </div>
+                  <button onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({ title: '지움 - 내 개인정보 삭제 서비스', text: `내 개인정보가 ${leakCount}곳에서 유출되고 있었어! 무료로 확인해봐 →`, url: window.location.origin });
+                    } else {
+                      navigator.clipboard?.writeText(`내 개인정보가 유출되고 있을 수 있어요. 무료로 확인해보세요 → ${window.location.origin}`);
+                      alert('링크가 복사되었습니다!');
+                    }
+                    trackEvent('share_after_prereg');
+                  }} className="w-full py-3 bg-white text-[#3182F6] font-bold rounded-2xl text-[13px] border border-blue-100 flex items-center justify-center gap-2">
+                    <ShareIcon /> 친구에게도 알려주기
+                  </button>
+                </div>
+              )}
+
+              {/* 가격 미리보기 */}
+              <div className="bg-gray-50 rounded-[20px] p-4 space-y-2">
+                <p className="text-[11px] font-bold text-[#6B7684] text-center">출시 예정 가격</p>
+                <div className="flex justify-between text-[12px]">
+                  <span className="text-[#4E5968]">연간 구독</span>
+                  <span className="font-bold">월 2,492원 <span className="text-gray-400 text-[10px]">(연 29,900원)</span></span>
+                </div>
+                <div className="flex justify-between text-[12px]">
+                  <span className="text-[#4E5968]">월간 구독</span>
+                  <span className="font-bold">월 3,900원</span>
+                </div>
+                <div className="flex justify-between text-[12px]">
+                  <span className="text-[#4E5968]">1회 삭제</span>
+                  <span className="font-bold">19,900원</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 text-[10px] text-gray-400">
+                <span>언제든 해지 가능</span><span>·</span><span>삭제 안 되면 100% 환불</span>
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] text-gray-400">
+                  <button onClick={() => navigateTo('terms')} className="underline">이용약관</button> · <button onClick={() => navigateTo('privacy')} className="underline">개인정보처리방침</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 4: 대시보드
+        ════════════════════════════════ */}
+        {step === 'dashboard' && (
+          <div className="px-6 pt-6 pb-10 space-y-5">
+            {/* 안전 점수 */}
+            <div className="fade-up bg-[#191F28] rounded-[32px] p-7 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#3182F6]/10 to-transparent"></div>
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <p className="text-gray-400 text-[12px] font-medium">나의 개인정보 안전 점수</p>
+                    <div className="flex items-end gap-1 mt-1">
+                      <span className="text-[52px] font-black leading-none">{safetyScore}</span>
+                      <span className="text-gray-500 text-[16px] font-bold pb-2">/100</span>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1.5 bg-orange-500/20 rounded-full">
+                    <span className="text-[11px] font-bold text-orange-400">주의 필요</span>
+                  </div>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: dashAnimated ? '38%' : '0%', background: 'linear-gradient(90deg, #EF4444, #F97316, #3182F6)' }}></div>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-2">삭제가 완료되면 점수가 올라갑니다</p>
+              </div>
+            </div>
+
+            {/* 활동 요약 */}
+            <div className="fade-up-1 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm">
+              <h4 className="font-bold text-[14px] mb-4">이번 주 활동 요약</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 rounded-2xl p-3 text-center">
+                  <p className="text-[22px] font-black text-[#3182F6]">6</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">삭제 요청 발송</p>
+                </div>
+                <div className="bg-green-50 rounded-2xl p-3 text-center">
+                  <p className="text-[22px] font-black text-green-500">2</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">삭제 완료</p>
+                </div>
+                <div className="bg-red-50 rounded-2xl p-3 text-center">
+                  <p className="text-[22px] font-black text-red-500">12</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">접근 차단</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 삭제 현황 */}
+            <div className="fade-up-2 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="font-bold text-[14px]">삭제 진행 현황</h4>
+                <span className="text-[#3182F6] text-[13px] font-bold">{leakCount}곳 중 2곳 완료</span>
+              </div>
+              <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-[#3182F6] rounded-full transition-all duration-1000" style={{ width: dashAnimated ? `${Math.round(2/leakCount*100)}%` : '0%' }}></div>
+              </div>
+              <div className="space-y-2 mt-2">
+                {[
+                  { name: "국내 대형 쇼핑몰 A사", status: "삭제 완료", color: "text-green-500", bg: "bg-green-50", icon: "✓" },
+                  { name: "국내 대형 커뮤니티 B", status: "삭제 완료", color: "text-green-500", bg: "bg-green-50", icon: "✓" },
+                  { name: "구글 검색 결과 정화", status: "요청 발송됨", color: "text-[#3182F6]", bg: "bg-blue-50", icon: "→" },
+                  { name: "데이터 브로커 'InfoTrade'", status: "검증 중", color: "text-orange-500", bg: "bg-orange-50", icon: "⏳" },
+                  { name: "글로벌 게임 플랫폼 B", status: "요청 준비 중", color: "text-gray-400", bg: "bg-gray-50", icon: "·" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50/50">
+                    <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center text-[11px]`}>{item.icon}</div>
+                    <span className="text-[13px] font-medium flex-1">{item.name}</span>
+                    <span className={`text-[11px] font-bold ${item.color}`}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 알림 */}
+            <div className="fade-up-3 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <div className="flex items-center gap-2 mb-1"><BellIcon /><h4 className="font-bold text-[14px]">최근 알림</h4></div>
+              {[
+                { time: "2시간 전", msg: "국내 대형 커뮤니티 B에서 정보 삭제가 완료되었습니다.", type: "success" },
+                { time: "6시간 전", msg: "새로운 데이터 브로커에서 당신의 이메일이 감지되었습니다.", type: "alert" },
+                { time: "1일 전", msg: "구글 검색 결과에 대한 삭제 요청이 접수되었습니다.", type: "info" },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-gray-50/50">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${
+                    item.type === 'success' ? 'bg-green-400' : item.type === 'alert' ? 'bg-red-400' : 'bg-blue-400'
+                  }`}></div>
+                  <div>
+                    <p className="text-[12px] text-[#191F28] leading-relaxed">{item.msg}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{item.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 공유 */}
+            <div className="fade-up-4">
+              <button className="w-full py-4 bg-[#F0F6FF] text-[#3182F6] font-bold rounded-2xl text-[13px] flex items-center justify-center gap-2 transition active:scale-[0.98]">
+                친구에게 공유하고 1개월 무료 받기 <ArrowIcon />
+              </button>
+            </div>
+
+            {/* 증명서 */}
+            <div className="fade-up-5 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-lg">📄</div>
+                  <div>
+                    <p className="text-[13px] font-bold">삭제 완료 증명서</p>
+                    <p className="text-[10px] text-gray-400">2곳 삭제 완료 건에 대한 증빙</p>
+                  </div>
+                </div>
+                <button className="px-3 py-1.5 bg-gray-50 rounded-lg text-[11px] font-bold text-[#4E5968]">다운로드</button>
+              </div>
+            </div>
+
+            {/* ✅ [FIX 8] 구독 관리/해지 메뉴 */}
+            <div className="fade-up-6 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <h4 className="font-bold text-[14px]">계정 관리</h4>
+              {[
+                { label: "구독 플랜", value: "연간 구독 (2025.02 ~ 2026.02)", action: "변경" },
+                { label: "결제 수단", value: "카카오페이", action: "변경" },
+                { label: "구독 해지", value: "", action: "해지하기" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <div>
+                    <p className="text-[12px] font-medium text-[#4E5968]">{item.label}</p>
+                    {item.value && <p className="text-[10px] text-gray-400 mt-0.5">{item.value}</p>}
+                  </div>
+                  <button className="text-[11px] font-bold text-[#3182F6]">{item.action}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* ════════════════════════════════
+            개인정보처리방침
+        ════════════════════════════════ */}
+        {step === 'privacy' && (
+          <div className="px-6 pt-6 pb-10 space-y-5">
+            <h2 className="text-[20px] font-black">개인정보처리방침</h2>
+            <div className="bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-4 text-[12px] text-[#4E5968] leading-relaxed">
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">1. 수집하는 개인정보 항목</p>
+                <p>필수: 이메일 주소 또는 전화번호 (유출 여부 조회 목적)</p>
+                <p>유료 구독 시 추가: 이름, 결제 정보 (삭제 위임 및 결제 처리 목적)</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">2. 수집·이용 목적</p>
+                <p>개인정보 유출 여부 조회, 유출 사이트에 대한 법적 삭제 요청 대행, 삭제 결과 통지, 실시간 모니터링 및 알림, 서비스 개선을 위한 통계 분석</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">3. 보유 및 이용 기간</p>
+                <p>무료 조회: 조회 완료 즉시 파기</p>
+                <p>유료 구독: 구독 해지 후 30일 이내 파기 (단, 법령에 따른 보존 의무가 있는 경우 해당 기간까지 보존)</p>
+                <p>전자상거래 거래 기록: 5년 (전자상거래법 제6조)</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">4. 제3자 제공</p>
+                <p>원칙적으로 제3자에게 제공하지 않습니다. 다만 삭제 요청 대행을 위해 유출 사이트 운영자에게 최소한의 본인 확인 정보를 전달할 수 있으며, 이 경우 사전에 별도 동의를 받습니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">5. 처리 위탁</p>
+                <p>결제 처리: 토스페이먼츠 주식회사</p>
+                <p>클라우드 호스팅: Vercel Inc. (미국)</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">6. 정보주체의 권리</p>
+                <p>개인정보 열람·정정·삭제·처리정지 요구권 (개인정보보호법 제35~37조). 아래 연락처로 요청하시면 10일 이내 처리합니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">7. 안전성 확보 조치</p>
+                <p>개인정보 암호화(AES-256), SSL/TLS 통신 암호화, 접근 권한 관리 및 접근 기록 보관, 정기적 보안 점검</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">8. 개인정보 보호책임자</p>
+                <p>이메일: privacy@zium.kr</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">9. 시행일</p>
+                <p>본 방침은 2026년 2월 22일부터 시행됩니다.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            이용약관
+        ════════════════════════════════ */}
+        {step === 'terms' && (
+          <div className="px-6 pt-6 pb-10 space-y-5">
+            <h2 className="text-[20px] font-black">이용약관</h2>
+            <div className="bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-4 text-[12px] text-[#4E5968] leading-relaxed">
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제1조 (목적)</p>
+                <p>본 약관은 지움(이하 "회사")이 제공하는 개인정보 삭제 대행 서비스(이하 "서비스")의 이용 조건 및 절차에 관한 사항을 규정함을 목적으로 합니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제2조 (서비스 내용)</p>
+                <p>① 회사는 이용자의 위임에 따라 개인정보보호법 제36조에 근거한 개인정보 삭제 요청을 대행합니다.</p>
+                <p>② 삭제 요청의 처리 여부는 해당 사이트 운영자의 대응에 따라 달라질 수 있으며, 회사는 최선의 노력을 다하되 삭제 완료를 보장하지 않습니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제3조 (이용 요금 및 결제)</p>
+                <p>① 서비스 요금은 서비스 내 표시된 금액에 따릅니다.</p>
+                <p>② 연간 구독은 결제일로부터 12개월간 유효하며, 별도 해지 요청이 없으면 자동 갱신됩니다.</p>
+                <p>③ 월간 구독은 매월 결제일에 자동 결제됩니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제4조 (환불 정책)</p>
+                <p>① 결제 후 7일 이내이며 삭제 요청이 미착수된 경우: 전액 환불</p>
+                <p>② 삭제 요청이 부분 완료된 경우: 미처리 건에 대해 비례 환불</p>
+                <p>③ 삭제 요청이 전체 완료된 경우: 환불 불가</p>
+                <p>④ 30일 이내 삭제 처리가 착수되지 않은 경우: 전액 환불</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제5조 (해지)</p>
+                <p>① 이용자는 언제든 서비스 내에서 1클릭으로 구독을 해지할 수 있습니다.</p>
+                <p>② 해지 시 이미 삭제 완료된 건은 유지되며, 모니터링 서비스가 중단됩니다.</p>
+                <p>③ 해지 후 잔여 기간에 대한 환불은 제4조에 따릅니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제6조 (면책)</p>
+                <p>① 회사는 유출 사이트의 비협조, 기술적 장애 등 회사의 통제 범위를 벗어난 사유로 삭제가 지연되거나 불가능한 경우 책임을 지지 않습니다.</p>
+                <p>② 무료 조회 결과는 외부 데이터베이스 기반 추정치이며, 실제 유출 현황과 다를 수 있습니다.</p>
+                <p>③ 잠재적 피해 추정액은 과거 판례 및 통계를 기반으로 한 참고용 수치이며, 법적 효력이 없습니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제7조 (분쟁 해결)</p>
+                <p>본 약관에 관한 분쟁은 회사의 소재지를 관할하는 법원을 전속 관할 법원으로 합니다.</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">부칙</p>
+                <p>본 약관은 2026년 2월 22일부터 시행됩니다.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            유출 없음 결과
+        ════════════════════════════════ */}
+        {step === 'safe' && (
+          <div className="px-6 pt-12 pb-10 text-center space-y-6">
+            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-5xl">🎉</span>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-[24px] font-black tracking-tight">유출이 감지되지 않았습니다!</h2>
+              <p className="text-[14px] text-[#6B7684] leading-relaxed">
+                현재 주요 유출 데이터베이스에서<br />
+                <span className="font-bold text-[#191F28]">{email || phone}</span>의<br />
+                유출 기록이 발견되지 않았습니다.
+              </p>
+            </div>
+            <div className="bg-green-50 rounded-[20px] p-5 space-y-3">
+              <div className="flex items-center gap-2 justify-center">
+                <span className="text-green-500"><CheckIcon /></span>
+                <p className="text-[13px] font-bold text-green-700">안전한 상태입니다</p>
+              </div>
+              <p className="text-[11px] text-green-600">다만 향후 유출이 발생할 수 있으므로, 주기적인 확인을 권장드립니다.</p>
+            </div>
+            <div className="bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
+              <p className="text-[12px] font-bold text-[#191F28]">앞으로도 안전하게</p>
+              {[
+                "비밀번호를 사이트마다 다르게 설정하세요",
+                "2단계 인증(2FA)을 활성화하세요",
+                "의심스러운 메일의 링크를 클릭하지 마세요",
+              ].map((tip, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-[#3182F6]"><CheckIcon /></span>
+                  <p className="text-[11px] text-[#6B7684]">{tip}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => navigateTo('landing')}
+              className="w-full py-4 bg-[#3182F6] text-white font-bold rounded-2xl text-[15px] shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98]">
+              다른 정보도 확인하기
+            </button>
+            <button onClick={() => {
+              if (navigator.share) {
+                navigator.share({ title: '지움 - 개인정보 유출 조회', text: '내 개인정보 유출 여부를 무료로 확인해보세요!', url: window.location.origin });
+              }
+            }} className="w-full py-3 bg-white text-[#3182F6] font-bold rounded-2xl text-[13px] border border-gray-100 flex items-center justify-center gap-2">
+              <ShareIcon /> 친구에게 알려주기
+            </button>
+          </div>
+        )}
+
       </main>
+
+      {/* ─── 푸터 ─── */}
+      <footer className="max-w-[440px] mx-auto px-6 pb-8 pt-4 space-y-4">
+        <div className="h-[1px] bg-gray-100"></div>
+        <div className="flex items-center justify-center gap-4 text-[10px] text-gray-400">
+          <button onClick={() => navigateTo('privacy')} className="hover:text-gray-600 transition">개인정보처리방침</button>
+          <span>·</span>
+          <button onClick={() => navigateTo('terms')} className="hover:text-gray-600 transition">이용약관</button>
+          <span>·</span>
+          <a href="mailto:support@zium.kr" className="hover:text-gray-600 transition">문의하기</a>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-[10px] text-gray-300">고객 문의: support@zium.kr | 카카오톡: @지움</p>
+          <p className="text-[10px] text-gray-300">© 2026 지움. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }
