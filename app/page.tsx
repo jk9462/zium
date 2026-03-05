@@ -1051,21 +1051,6 @@ export default function ZiumFinal() {
               <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-[#3182F6] rounded-full transition-all duration-1000" style={{ width: dashAnimated ? `${Math.round(2/leakCount*100)}%` : '0%' }}></div>
               </div>
-              <div className="space-y-2 mt-2">
-                {[
-                  { name: "국내 대형 쇼핑몰 A사", status: "삭제 완료", color: "text-green-500", bg: "bg-green-50", icon: "✓" },
-                  { name: "국내 대형 커뮤니티 B", status: "삭제 완료", color: "text-green-500", bg: "bg-green-50", icon: "✓" },
-                  { name: "구글 검색 결과 정화", status: "요청 발송됨", color: "text-[#3182F6]", bg: "bg-blue-50", icon: "→" },
-                  { name: "데이터 브로커 'InfoTrade'", status: "검증 중", color: "text-orange-500", bg: "bg-orange-50", icon: "⏳" },
-                  { name: "글로벌 게임 플랫폼 B", status: "요청 준비 중", color: "text-gray-400", bg: "bg-gray-50", icon: "·" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50/50">
-                    <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center text-[11px]`}>{item.icon}</div>
-                    <span className="text-[13px] font-medium flex-1">{item.name}</span>
-                    <span className={`text-[11px] font-bold ${item.color}`}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* 알림 */}
