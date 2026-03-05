@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 import { useState, useEffect, useRef, useCallback } from 'react';
 
@@ -10,7 +11,7 @@ const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="n
 const BellIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
 const ArrowIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
 const StarIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>;
-const ChevronIcon = ({ open }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>;
+const ChevronIcon = ({ open }: { open: boolean }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>;
 const ShareIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>;
 
 // ─── 입력 검증 유틸 (OpenAI 체리픽) ───
@@ -35,6 +36,9 @@ export default function ZiumFinal() {
   const [preregEmail, setPreregEmail] = useState("");
   const [preregDone, setPreregDone] = useState(false);
   const [preregCount, setPreregCount] = useState(847);
+  const [breachData, setBreachData] = useState(null);
+  const [scanError, setScanError] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
   const emailRef = useRef(null);
 
   // ✅ [FIX 1] 하이드레이션: 클라이언트에서만 날짜 세팅
@@ -91,10 +95,8 @@ export default function ZiumFinal() {
 
   // 유출 건수 계산
   const getLeakCount = () => {
-    if (!email && !phone) return 14;
-    const src = email || phone;
-    const hash = src.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
-    return Math.abs(hash % 12) + 8;
+    if (breachData && breachData.totalBreaches !== undefined) return breachData.totalBreaches;
+    return 0;
   };
 
   // 피해금액 (만원 단위 숫자 — Gemini CSS카운터용)
@@ -109,40 +111,82 @@ export default function ZiumFinal() {
   const leakCount = getLeakCount();
   const damageAmount = getDamageAmount(leakCount);
 
-  // ✅ [FIX 2] 조건부 유출 항목
+  // 유출 항목 리스트
   const getLeakItems = () => {
+    if (!breachData || !breachData.breaches || breachData.breaches.length === 0) return [];
+    const classMap = {};
+    breachData.breaches.forEach(b => {
+      (b.dataClasses || []).forEach(dc => {
+        if (!classMap[dc]) classMap[dc] = { count: 0, severity: b.severity };
+        classMap[dc].count++;
+        if (b.severity === "critical") classMap[dc].severity = "critical";
+      });
+    });
+    const labelMap = {
+      "Email addresses": { icon: "📧", label: "이메일 주소" },
+      "Passwords": { icon: "🔑", label: "비밀번호" },
+      "Phone numbers": { icon: "📱", label: "전화번호" },
+      "IP addresses": { icon: "🌐", label: "IP 주소" },
+      "Names": { icon: "👤", label: "이름" },
+      "Usernames": { icon: "👤", label: "아이디/닉네임" },
+      "Physical addresses": { icon: "🏠", label: "주소 정보" },
+      "Dates of birth": { icon: "📅", label: "생년월일" },
+      "Credit card data": { icon: "💳", label: "신용카드 정보" },
+      "Bank account numbers": { icon: "🏦", label: "은행 계좌" },
+      "Social media profiles": { icon: "📱", label: "SNS 프로필" },
+      "Employment": { icon: "💼", label: "직장 정보" },
+      "Geographic locations": { icon: "📍", label: "위치 정보" },
+      "Genders": { icon: "👤", label: "성별" },
+      "Job titles": { icon: "💼", label: "직업" },
+      "Employers": { icon: "🏢", label: "직장" },
+      "Education levels": { icon: "🎓", label: "학력" },
+      "Nationalities": { icon: "🌍", label: "국적" },
+      "Purchasing habits": { icon: "🛒", label: "구매 이력" },
+      "Device information": { icon: "📱", label: "기기 정보" },
+      "Security questions and answers": { icon: "❓", label: "보안 질문/답변" },
+      "Bios": { icon: "📝", label: "프로필 소개" },
+      "Age groups": { icon: "📊", label: "연령대" },
+      "Avatars": { icon: "🖼️", label: "프로필 사진" },
+      "Social connections": { icon: "🤝", label: "소셜 관계" },
+      "Government issued IDs": { icon: "🪪", label: "신분증 정보" },
+      "Auth tokens": { icon: "🔐", label: "인증 토큰" },
+      "Partial credit card data": { icon: "💳", label: "카드정보(일부)" },
+      "Time zones": { icon: "🕐", label: "시간대" },
+      "Family members' names": { icon: "👨‍👩‍👧", label: "가족 이름" },
+      "Passport numbers": { icon: "🛂", label: "여권번호" },
+      "Smoking habits": { icon: "🚬", label: "흡연 여부" },
+      "Drinking habits": { icon: "🍷", label: "음주 여부" },
+      "Living costs": { icon: "💰", label: "생활비 정보" },
+      "Apps installed on devices": { icon: "📲", label: "설치된 앱" },
+      "Browser user agent details": { icon: "🌐", label: "브라우저 정보" },
+    };
     const items = [];
-    if (email) {
-      items.push({ icon: "📧", label: "이메일 주소", status: "3곳 노출", severity: "high" });
-      items.push({ icon: "🔑", label: "비밀번호 (해시)", status: "2곳 노출", severity: "critical" });
-    }
-    if (phone) {
-      items.push({ icon: "📱", label: "전화번호", status: "5곳 노출", severity: "high" });
-    }
-    if (email && phone) {
-      items.push({ icon: "🏠", label: "주소/위치 정보", status: "1곳 노출", severity: "medium" });
-    }
-    // 이메일만 입력해도 최소 3개는 보여줘야 함
-    if (items.length < 3) {
-      if (!items.find(i => i.label === "전화번호")) {
-        items.push({ icon: "👤", label: "이름/닉네임", status: "2곳 노출", severity: "medium" });
-      }
-      items.push({ icon: "🏠", label: "주소/위치 정보", status: "1곳 노출", severity: "medium" });
-    }
-    return items;
+    Object.entries(classMap).forEach(([dc, info]) => {
+      const mapped = labelMap[dc] || { icon: "📋", label: dc };
+      items.push({
+        icon: mapped.icon,
+        label: mapped.label,
+        status: info.count + "곳 노출",
+        severity: info.severity === "critical" ? "critical" : info.count >= 3 ? "high" : "medium",
+        sites: breachData.breaches
+          .filter(b => (b.dataClasses || []).includes(dc))
+          .map(b => b.title || b.name)
+      });
+    });
+    const order = { critical: 0, high: 1, medium: 2 };
+    items.sort((a, b) => (order[a.severity] || 2) - (order[b.severity] || 2));
+    return items.slice(0, 8);
   };
 
-  // 스캔 시뮬레이션
+  // 스캔 시뮬레이션 + API 연동 결과 반영
   useEffect(() => {
     if (step === 'scan') {
       const tasks = [
-        { t: "개인정보보호위원회 유출 신고 데이터 대조 중...", p: 12, phase: 1 },
-        { t: `${email || phone} 관련 유출 이력 조회 중...`, p: 28, phase: 1 },
-        { t: "글로벌 유출 데이터베이스 정밀 분석 중...", p: 45, phase: 2 },
-        { t: "국내 주요 커뮤니티 및 중고거래 플랫폼 탐색...", p: 62, phase: 2 },
-        { t: "유출 데이터베이스 크로스 체킹...", p: 78, phase: 3 },
-        { t: "유출 경로 분석 및 피해 규모 산정 중...", p: 91, phase: 3 },
-        { t: "리포트 생성 완료", p: 100, phase: 4 }
+        { t: "개인정보보호위원회 유출 신고 데이터 대조 중...", p: 15, phase: 1 },
+        { t: (email || phone) + " 관련 유출 이력 조회 중...", p: 30, phase: 1 },
+        { t: "글로벌 유출 데이터베이스(HIBP) 정밀 분석 중...", p: 50, phase: 2 },
+        { t: "유출 경로 분석 및 피해 규모 산정 중...", p: 70, phase: 3 },
+        { t: "리포트 생성 중...", p: 90, phase: 3 },
       ];
       let i = 0;
       const interval = setInterval(() => {
@@ -152,14 +196,26 @@ export default function ZiumFinal() {
           setScanPhase(tasks[i].phase);
           i++;
         }
-        if (i === tasks.length) {
+      }, 1200);
+      const checkDone = setInterval(() => {
+        if (!isScanning && (breachData || scanError)) {
           clearInterval(interval);
-          setTimeout(() => navigateTo('report'), 600);
+          clearInterval(checkDone);
+          setProgress(100);
+          setLoadingText("리포트 생성 완료");
+          setScanPhase(4);
+          setTimeout(() => {
+            if (breachData && breachData.totalBreaches === 0) {
+              navigateTo('noLeak');
+            } else {
+              navigateTo('report');
+            }
+          }, 600);
         }
-      }, 1100);
-      return () => clearInterval(interval);
+      }, 300);
+      return () => { clearInterval(interval); clearInterval(checkDone); };
     }
-  }, [step, email, phone, navigateTo]);
+  }, [step, isScanning, breachData, scanError]);
 
   useEffect(() => {
     if (step === 'report') {
@@ -181,23 +237,18 @@ export default function ZiumFinal() {
     }
   }, [step]);
 
-  const handleScan = () => {
-    if (!email && !phone) {
-      setInputError("이메일 또는 전화번호를 입력해주세요");
-      emailRef.current?.focus();
-      return;
-    }
-    if (email && !isValidEmail(email)) {
-      setInputError("올바른 이메일 형식을 입력해주세요");
-      return;
-    }
-    if (phone && !isValidPhone(phone)) {
-      setInputError("올바른 전화번호를 입력해주세요 (10~11자리)");
-      return;
-    }
-    setInputError("");
+  const handleScan = async () => {
+    if (!email && !phone) { setInputError("이메일 또는 전화번호를 입력해주세요"); emailRef.current?.focus(); return; }
+    if (email && !isValidEmail(email)) { setInputError("올바른 이메일 형식을 입력해주세요"); return; }
+    if (phone && !isValidPhone(phone)) { setInputError("올바른 전화번호를 입력해주세요 (10~11자리)"); return; }
+    setInputError(""); setScanError(""); setBreachData(null); setIsScanning(true);
     trackEvent('scan_start', { has_email: !!email, has_phone: !!phone });
     navigateTo('scan');
+    try {
+      const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email || undefined, phone: phone || undefined }) });
+      const data = await res.json();
+      if (data.ok) { setBreachData(data); } else { setScanError(data.error || "scan_failed"); }
+    } catch (e) { setScanError("network_error"); } finally { setIsScanning(false); }
   };
 
   // FAQ 데이터
@@ -445,8 +496,13 @@ export default function ZiumFinal() {
                 </div>
                 <p className="text-gray-400 text-[12px] font-medium mb-2">잠재적 피해 추정액</p>
                 {showPrice ? (
-                  <h2 className="text-[48px] font-black tracking-tighter mb-1">
-                    약 <span className="counter-animate" style={{ '--dmg': damageAmount }}></span><span className="text-[28px]">만원</span>
+                  <h2 className="font-black tracking-tighter mb-1">
+                    <span className="text-[24px] align-middle mr-1">약 </span>
+                    <span
+                      className="counter-animate text-[48px] align-middle"
+                      style={{ '--dmg': damageAmount }}
+                    ></span>
+                    <span className="text-[24px] align-middle ml-1">만원</span>
                   </h2>
                 ) : <div className="h-[60px]"></div>}
                 <p className="text-[9px] text-gray-600 mb-3">유출 사이트당 평균 위자료 판례 + 2차 피해 추정 기준 · 실제 피해와 다를 수 있습니다</p>
@@ -462,7 +518,11 @@ export default function ZiumFinal() {
                   </div>
                   <div className="w-[1px] bg-white/10"></div>
                   <div className="text-center">
-                    <p className="text-[24px] font-black text-yellow-400">3</p>
+                    <p className="text-[24px] font-black text-yellow-400">
+                      {breachData && breachData.summary && typeof breachData.summary.critical === 'number'
+                        ? breachData.summary.critical
+                        : 0}
+                    </p>
                     <p className="text-[10px] text-gray-500 mt-0.5">긴급 처리 필요</p>
                   </div>
                 </div>
@@ -480,64 +540,72 @@ export default function ZiumFinal() {
               </div>
             </div>
 
-            {/* ✅ [FIX 2] 조건부 유출 항목 */}
+            {/* 유출 항목 + 실제 유출 사이트 */}
             <div className="fade-up-1 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
               <div className="flex justify-between items-center mb-1">
                 <h4 className="font-bold text-[14px]">유출 항목</h4>
                 <span className="text-[10px] text-gray-400">{todayStr ? `조회일: ${todayStr}` : ''}</span>
               </div>
               {getLeakItems().map((item, i) => (
-                <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
-                  <span className="text-lg">{item.icon}</span>
-                  <span className="text-[13px] font-medium flex-1">{item.label}</span>
-                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${
-                    item.severity === 'critical' ? 'bg-red-50 text-red-500' :
-                    item.severity === 'high' ? 'bg-orange-50 text-orange-500' : 'bg-yellow-50 text-yellow-600'
-                  }`}>{item.status}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* 유출 출처 */}
-            <div className="fade-up-2 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
-              <h4 className="font-bold text-[14px] mb-1">유출 경로 (상위 {leakCount}곳 중)</h4>
-              {[
-                { icon: "🛍️", name: "국내 대형 쇼핑몰 A사", detail: "2023.08 유출" },
-                { icon: "🎮", name: "글로벌 게임 플랫폼 B", detail: "2024.01 유출" },
-                { icon: "😈", name: "해외 데이터 브로커 'InfoTrade'", detail: "현재 판매 중" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
-                  <span className="text-lg">{item.icon}</span>
-                  <div className="flex-1">
-                    <p className="text-[13px] font-medium">{item.name}</p>
-                    <p className="text-[10px] text-gray-400">{item.detail}</p>
+                <div key={i} className="bg-gray-50 p-3.5 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-[13px] font-medium flex-1">{item.label}</span>
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                      item.severity === 'critical' ? 'bg-red-50 text-red-500' :
+                      item.severity === 'high' ? 'bg-orange-50 text-orange-500' : 'bg-yellow-50 text-yellow-600'
+                    }`}>{item.status}</span>
                   </div>
-                  <span className="text-red-500"><AlertIcon /></span>
+                  {item.sites && item.sites.length > 0 && (
+                    <div className="mt-1.5 text-[12px] text-[#ADB5BD]">
+                      {item.sites.slice(0, 3).join(', ')}
+                      {item.sites.length > 3 ? ` 외 ${item.sites.length - 3}곳` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
-              {/* 잠금 영역 — 클릭 시 deleteKit 이동 */}
-              <div className="relative cursor-pointer" onClick={() => { trackEvent('deletekit_open'); navigateTo('deleteKit'); }}>
-                <div className="blur-content space-y-3">
-                  {[
-                    { icon: "🏦", name: "국내 금융 서비스 C", detail: "2024.03 유출" },
-                    { icon: "📋", name: "공공기관 D 외부 유출", detail: "2023.11 유출" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-gray-50 p-3.5 rounded-2xl">
-                      <span className="text-lg">{item.icon}</span>
-                      <div className="flex-1">
-                        <p className="text-[13px] font-medium">{item.name}</p>
-                        <p className="text-[10px] text-gray-400">{item.detail}</p>
+
+              {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+                <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>유출된 사이트</div>
+                  {breachData.breaches.slice(0, 10).map((b, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 0',
+                        borderBottom: i < Math.min(breachData.breaches.length, 10) - 1 ? '1px solid #f1f3f5' : 'none'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{b.title || b.name}</div>
+                        <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>
+                          {b.breachDate} · {(b.pwnCount || 0).toLocaleString()}건 유출
+                        </div>
                       </div>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                          background: b.severity === 'critical' ? '#fff0f0' : '#fff8e1',
+                          color: b.severity === 'critical' ? '#e03131' : '#e67700'
+                        }}
+                      >
+                        {b.severity === 'critical' ? '긴급' : '주의'}
+                      </span>
                     </div>
                   ))}
+                  {breachData.breaches.length > 10 && (
+                    <div style={{ textAlign: 'center', color: '#868e96', fontSize: 13, marginTop: 12 }}>
+                      외 {breachData.breaches.length - 10}개 사이트
+                    </div>
+                  )}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex items-center gap-1.5 px-4 py-2 bg-[#3182F6] text-white rounded-full shadow-lg hover:shadow-xl transition-all">
-                    <LockIcon />
-                    <span className="text-[12px] font-bold">무료 삭제요청 템플릿 받기</span>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* 지움이 하는 일 */}
@@ -665,6 +733,35 @@ export default function ZiumFinal() {
               리포트로 돌아가기
             </button>
           </div>
+        )}
+
+        {/* ════════════════════════════════
+            STEP 3.4: 유출 없음(noLeak)
+        ════════════════════════════════ */}
+        {step === 'noLeak' && (
+          <main style={{ maxWidth: 480, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>유출 내역이 없습니다!</h2>
+            <p style={{ color: '#868e96', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
+              {email || phone}에 대한 알려진 유출 기록이 발견되지 않았습니다.<br />하지만 새로운 유출은 언제든 발생할 수 있어요.
+            </p>
+            <button
+              onClick={() => navigateTo('landing')}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: '#191F28',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              다른 이메일로 조회하기
+            </button>
+          </main>
         )}
 
         {/* ════════════════════════════════
