@@ -41,6 +41,7 @@ export default function ZiumFinal() {
   const [isScanning, setIsScanning] = useState(false);
   const [checkedActions, setCheckedActions] = useState({});
   const [safetyScoreCalc, setSafetyScoreCalc] = useState(10);
+  const [show2faGuide, setShow2faGuide] = useState(false);
   const emailRef = useRef(null);
 
   // ✅ [FIX 1] 하이드레이션: 클라이언트에서만 날짜 세팅
@@ -225,6 +226,16 @@ export default function ZiumFinal() {
       trackEvent('report_view', { leak_count: leakCount });
     }
   }, [step]);
+
+  useEffect(() => {
+    if (step === 'report' && breachData) {
+      const total = breachData.totalBreaches || 0;
+      const critical = breachData.summary?.critical || 0;
+      const base = Math.max(5, 50 - (total * 3) - (critical * 5));
+      setSafetyScoreCalc(Math.min(Math.max(base, 5), 45));
+      setCheckedActions({});
+    }
+  }, [step, breachData]);
 
   useEffect(() => {
     if (step === 'dashboard') {
@@ -661,7 +672,16 @@ export default function ZiumFinal() {
                           const next = { ...checkedActions, [key]: !checkedActions[key] };
                           setCheckedActions(next);
                           const count = Object.values(next).filter(Boolean).length;
-                          setSafetyScoreCalc(10 + count * 12);
+                          const total = breachData?.totalBreaches || 0;
+                          const critical = breachData?.summary?.critical || 0;
+                          const base = Math.max(5, 50 - (total * 3) - (critical * 5));
+                          const maxGain = 100 - base;
+                          const totalChecks =
+                            (breachData?.breaches?.filter(b => b.severity === 'critical').slice(0, 5).length || 0) +
+                            (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
+                            1;
+                          const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
+                          setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
                         }}
                         style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
                       />
@@ -706,7 +726,16 @@ export default function ZiumFinal() {
                           const next = { ...checkedActions, [key]: !checkedActions[key] };
                           setCheckedActions(next);
                           const count = Object.values(next).filter(Boolean).length;
-                          setSafetyScoreCalc(10 + count * 12);
+                          const total = breachData?.totalBreaches || 0;
+                          const critical = breachData?.summary?.critical || 0;
+                          const base = Math.max(5, 50 - (total * 3) - (critical * 5));
+                          const maxGain = 100 - base;
+                          const totalChecks =
+                            (breachData?.breaches?.filter(b => b.severity === 'critical').slice(0, 5).length || 0) +
+                            (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
+                            1;
+                          const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
+                          setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
                         }}
                         style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
                       />
@@ -735,7 +764,16 @@ export default function ZiumFinal() {
                       const next = { ...checkedActions, '2fa': !checkedActions['2fa'] };
                       setCheckedActions(next);
                       const count = Object.values(next).filter(Boolean).length;
-                      setSafetyScoreCalc(10 + count * 12);
+                      const total = breachData?.totalBreaches || 0;
+                      const critical = breachData?.summary?.critical || 0;
+                      const base = Math.max(5, 50 - (total * 3) - (critical * 5));
+                      const maxGain = 100 - base;
+                      const totalChecks =
+                        (breachData?.breaches?.filter(b => b.severity === 'critical').slice(0, 5).length || 0) +
+                        (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
+                        1;
+                      const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
+                      setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
                     }}
                     style={{ width: 22, height: 22, accentColor: '#2563EB', cursor: 'pointer' }}
                   />
@@ -880,7 +918,7 @@ export default function ZiumFinal() {
               </div>
 
               <a
-                href="https://bitwarden.com"
+                href="https://bitwarden.com/download/"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -896,15 +934,13 @@ export default function ZiumFinal() {
                 <span style={{ fontSize: 28 }}>🔐</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>비밀번호 관리자 시작하기</div>
-                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>사이트마다 다른 비밀번호를 자동 생성·저장</div>
+                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>무료 오픈소스 · 한국어 지원 · 크롬/앱 모두 가능</div>
                 </div>
                 <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>무료 →</span>
               </a>
 
-              <a
-                href="https://support.google.com/accounts/answer/185839?hl=ko"
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
+                onClick={() => setShow2faGuide(!show2faGuide)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -912,19 +948,25 @@ export default function ZiumFinal() {
                   padding: '14px 0',
                   borderBottom: '1px solid #f1f3f5',
                   textDecoration: 'none',
-                  color: '#191F28'
+                  color: '#191F28',
+                  cursor: 'pointer'
                 }}
               >
                 <span style={{ fontSize: 28 }}>📱</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>2단계 인증 설정 가이드</div>
                   <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>비밀번호가 유출되어도 계정을 보호</div>
+                  {show2faGuide && (
+                    <div style={{ fontSize: 12, color: '#495057', marginTop: 6, whiteSpace: 'pre-line' }}>
+                      {'Gmail: 구글 계정 → 보안 → 2단계 인증\n네이버: 네이버 → 내정보 → 보안설정 → 2단계 인증\n카카오: 카카오계정 → 보안 → 2단계 인증'}
+                    </div>
+                  )}
                 </div>
-                <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>설정 →</span>
-              </a>
+                <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>{show2faGuide ? '닫기 ∧' : '보기 ∨'}</span>
+              </div>
 
               <a
-                href="https://www.eprivacy.go.kr"
+                href="https://www.eprivacy.go.kr/main.do"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -939,7 +981,7 @@ export default function ZiumFinal() {
                 <span style={{ fontSize: 28 }}>🧹</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>안 쓰는 사이트 일괄 탈퇴</div>
-                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>e프라이버시 클린서비스 (정부 무료)</div>
+                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>e프라이버시 클린서비스 (정부 운영 · 무료)</div>
                 </div>
                 <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>바로가기 →</span>
               </a>
@@ -960,14 +1002,37 @@ export default function ZiumFinal() {
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>주변 사람들도 확인시키세요</div>
               <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>이미 {preregCount.toLocaleString()}명이 확인했어요</div>
 
+              {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+                <div
+                  style={{
+                    background: '#f1f3f5',
+                    borderRadius: 12,
+                    padding: 16,
+                    marginBottom: 16,
+                    textAlign: 'left',
+                    fontSize: 13,
+                    color: '#495057'
+                  }}
+                >
+                  {(() => {
+                    const topNames = breachData.breaches.slice(0, 3).map(b => b.title || b.name).join(', ');
+                    return `😱 내 개인정보가 ${leakCount}곳에서 유출! ${topNames}`;
+                  })()}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button
                   onClick={() => {
                     const text =
-                      '내 개인정보가 ' +
+                      '😱 내 개인정보가 ' +
                       leakCount +
-                      '곳에서 유출되고 있었어 😱 너도 확인해봐! → ' +
-                      (typeof window !== 'undefined' ? window.location.origin : 'https://zium-eight.vercel.app');
+                      '곳에서 유출되고 있었어!\n유출된 곳: ' +
+                      (breachData && breachData.breaches
+                        ? breachData.breaches.slice(0, 3).map(b => b.title || b.name).join(', ')
+                        : '') +
+                      '\n\n너도 무료로 확인해봐 → ' +
+                      (typeof window !== 'undefined' ? window.location.origin : '');
                     if (navigator.share) {
                       navigator.share({ title: '지움 - 개인정보 유출 점검', text: text });
                     } else {
