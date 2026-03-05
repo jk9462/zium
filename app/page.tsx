@@ -39,6 +39,8 @@ export default function ZiumFinal() {
   const [breachData, setBreachData] = useState(null);
   const [scanError, setScanError] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [checkedActions, setCheckedActions] = useState({});
+  const [safetyScoreCalc, setSafetyScoreCalc] = useState(10);
   const emailRef = useRef(null);
 
   // ✅ [FIX 1] 하이드레이션: 클라이언트에서만 날짜 세팅
@@ -259,6 +261,36 @@ export default function ZiumFinal() {
     { q: "삭제 안 되면 환불 되나요?", a: "네. 30일 이내 삭제 요청 처리가 시작되지 않은 경우 100% 전액 환불해드립니다. 부분 처리된 경우 미처리 건에 대해 비례 환불합니다." },
     { q: "해외 사이트도 삭제 가능한가요?", a: "GDPR(유럽), CCPA(캘리포니아) 등 해외 개인정보보호법에 근거하여 영문 삭제 요청을 대행합니다. 주요 글로벌 유출 데이터베이스와 연동하여 해외 유출도 탐지합니다." },
   ];
+
+  const passwordChangeUrls = {
+    "Dropbox": "https://www.dropbox.com/account/security",
+    "Twitter": "https://twitter.com/settings/password",
+    "Adobe": "https://account.adobe.com/security",
+    "LinkedIn": "https://www.linkedin.com/psettings/change-password",
+    "Facebook": "https://www.facebook.com/settings?tab=security",
+    "Canva": "https://www.canva.com/settings/account",
+    "CoinMarketCap": "https://coinmarketcap.com/account/security/",
+    "Houzz": "https://www.houzz.com/user/account",
+    "Jefit": "https://www.jefit.com/my-jefit/account-settings/",
+    "MyFitnessPal": "https://www.myfitnesspal.com/account/change_password",
+    "Duolingo": "https://www.duolingo.com/settings/account",
+    "Bitly": "https://app.bitly.com/settings/profile/",
+    "Imgur": "https://imgur.com/account/settings",
+    "Wattpad": "https://www.wattpad.com/settings",
+    "Deezer": "https://www.deezer.com/account",
+    "Zynga": "https://www.zynga.com/",
+  };
+
+  const dpEmails = {
+    "Dropbox": "privacy@dropbox.com",
+    "Twitter": "privacy@twitter.com",
+    "Adobe": "privacy@adobe.com",
+    "LinkedIn": "privacy@linkedin.com",
+    "Facebook": "privacy@fb.com",
+    "Canva": "privacy@canva.com",
+    "Houzz": "privacy@houzz.com",
+    "집꾸미기": "cs@zipkumi.com",
+  };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#191F28]" style={{ fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -608,48 +640,426 @@ export default function ZiumFinal() {
               )}
             </div>
 
-            {/* 지움이 하는 일 */}
-            <div className="fade-up-3 bg-[#F0F6FF] rounded-[24px] p-5 space-y-4">
-              <h4 className="font-bold text-[14px] text-[#3182F6]">지움이 대신 해드리는 일</h4>
-              {[
-                { num: "01", title: "법적 삭제 요청 발송", desc: "개인정보보호법 제36조에 근거한 정보 삭제 위임" },
-                { num: "02", title: "24시간 실시간 모니터링", desc: "새로운 유출 발생 시 즉시 알림 및 자동 대응" },
-                { num: "03", title: "삭제 완료 증명서 발급", desc: "삭제 처리 내역을 기록한 증빙 문서 제공" },
-              ].map((item, i) => (
-                <div key={i} className="flex gap-3 items-start">
-                  <span className="text-[10px] font-black text-[#3182F6] bg-white w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">{item.num}</span>
+            {/* 섹션 A: 지금 바로 해야 할 일 */}
+            {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 20 }}>🚨</span>
+                  <span style={{ fontWeight: 800, fontSize: 18 }}>지금 바로 해야 할 일</span>
+                </div>
+                <p style={{ fontSize: 13, color: '#868e96', marginBottom: 20 }}>체크할 때마다 안전점수가 올라갑니다</p>
+
+                {breachData.breaches.filter(b => b.severity === 'critical').slice(0, 5).map((b, i) => {
+                  const key = 'pwd_' + b.name;
+                  const url = passwordChangeUrls[b.name] || passwordChangeUrls[b.title] || ('https://www.google.com/search?q=' + encodeURIComponent((b.title || b.name) + ' 비밀번호 변경'));
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderBottom: '1px solid #f1f3f5' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!checkedActions[key]}
+                        onChange={() => {
+                          const next = { ...checkedActions, [key]: !checkedActions[key] };
+                          setCheckedActions(next);
+                          const count = Object.values(next).filter(Boolean).length;
+                          setSafetyScoreCalc(10 + count * 12);
+                        }}
+                        style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 14,
+                            textDecoration: checkedActions[key] ? 'line-through' : 'none',
+                            color: checkedActions[key] ? '#adb5bd' : '#191F28'
+                          }}
+                        >
+                          {(b.title || b.name) + ' 비밀번호 변경하기'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>
+                          {(b.dataClasses || []).some(dc => dc.toLowerCase().includes('password')) ? '비밀번호 유출됨 · ' : ''}{b.breachDate} 해킹
+                        </div>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 12, color: '#2563EB', fontWeight: 600, textDecoration: 'none', marginTop: 4, display: 'inline-block' }}
+                        >
+                          비밀번호 변경 →
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {breachData.breaches.filter(b => b.severity !== 'critical').slice(0, 3).map((b, i) => {
+                  const key = 'leave_' + b.name;
+                  return (
+                    <div
+                      key={'l' + i}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderBottom: '1px solid #f1f3f5' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!checkedActions[key]}
+                        onChange={() => {
+                          const next = { ...checkedActions, [key]: !checkedActions[key] };
+                          setCheckedActions(next);
+                          const count = Object.values(next).filter(Boolean).length;
+                          setSafetyScoreCalc(10 + count * 12);
+                        }}
+                        style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 14,
+                            textDecoration: checkedActions[key] ? 'line-through' : 'none',
+                            color: checkedActions[key] ? '#adb5bd' : '#191F28'
+                          }}
+                        >
+                          {(b.title || b.name) + ' 회원탈퇴 또는 비밀번호 변경'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>더 이상 안 쓰는 서비스라면 탈퇴 권장</div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!checkedActions['2fa']}
+                    onChange={() => {
+                      const next = { ...checkedActions, '2fa': !checkedActions['2fa'] };
+                      setCheckedActions(next);
+                      const count = Object.values(next).filter(Boolean).length;
+                      setSafetyScoreCalc(10 + count * 12);
+                    }}
+                    style={{ width: 22, height: 22, accentColor: '#2563EB', cursor: 'pointer' }}
+                  />
                   <div>
-                    <p className="text-[13px] font-bold">{item.title}</p>
-                    <p className="text-[11px] text-[#6B7684] mt-0.5">{item.desc}</p>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        textDecoration: checkedActions['2fa'] ? 'line-through' : 'none',
+                        color: checkedActions['2fa'] ? '#adb5bd' : '#191F28'
+                      }}
+                    >
+                      2단계 인증(2FA) 활성화하기
+                    </div>
+                    <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>비밀번호 유출되어도 계정을 지킬 수 있어요</div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
 
-            {/* 무료 삭제요청 템플릿 CTA → deleteKit */}
-            <div className="fade-up-4 bg-white rounded-[24px] p-5 border-2 border-[#3182F6] shadow-sm cursor-pointer hover:shadow-md transition-all"
-              onClick={() => { trackEvent('deletekit_open'); navigateTo('deleteKit'); }}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#F0F6FF] rounded-2xl flex items-center justify-center text-[#3182F6]"><ShieldIcon /></div>
-                <div className="flex-1">
-                  <p className="text-[13px] font-bold">무료 삭제요청 템플릿 1건</p>
-                  <p className="text-[11px] text-gray-400">가장 흔한 노출(게시글/프로필 등) 대응 문구를 드려요</p>
+            {/* 섹션 B: 안전점수 */}
+            {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #191F28, #2d3748)',
+                  borderRadius: 16,
+                  padding: '28px 24px',
+                  marginBottom: 16,
+                  color: '#fff'
+                }}
+              >
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, color: '#adb5bd', marginBottom: 8 }}>내 개인정보 안전점수</div>
+                  <div
+                    style={{
+                      fontSize: 56,
+                      fontWeight: 900,
+                      color: safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b'
+                    }}
+                  >
+                    {safetyScoreCalc}
+                  </div>
+                  <div style={{ fontSize: 14, color: '#adb5bd' }}>/100</div>
                 </div>
-                <span className="text-[#3182F6]"><ArrowIcon /></span>
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: 100,
+                    height: 12,
+                    overflow: 'hidden',
+                    marginBottom: 12
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: 100,
+                      background: safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b',
+                      width: safetyScoreCalc + '%',
+                      transition: 'width 0.5s ease'
+                    }}
+                  />
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 13, color: '#adb5bd' }}>
+                  {safetyScoreCalc < 30
+                    ? '⚠️ 위험 — 위의 조치를 지금 시작하세요'
+                    : safetyScoreCalc < 70
+                      ? '🟡 보통 — 조금만 더 하면 안전해져요'
+                      : '✅ 양호 — 잘 하고 있어요!'}
+                </div>
+              </div>
+            )}
+
+            {/* 섹션 C: 삭제요청 보내기 */}
+            {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 20 }}>📋</span>
+                  <span style={{ fontWeight: 800, fontSize: 18 }}>삭제요청 보내기</span>
+                </div>
+                <p style={{ fontSize: 13, color: '#868e96', marginBottom: 20 }}>개인정보보호법 제36조에 따라 삭제를 요청할 수 있어요</p>
+
+                {breachData.breaches.slice(0, 5).map((b, i) => {
+                  const dpoEmail = dpEmails[b.name] || dpEmails[b.title];
+                  const templateText =
+                    `안녕하세요,\n\n개인정보보호법 제36조에 근거하여, 귀 서비스에 등록된 본인의 개인정보 삭제를 요청합니다.\n\n` +
+                    `- 이메일: ${email}\n` +
+                    `- 요청사항: 계정 및 관련 개인정보 전체 삭제\n` +
+                    `- 법적근거: 개인정보보호법 제36조 (개인정보의 정정·삭제)\n` +
+                    `- 처리기한: 요청일로부터 10일 이내\n\n감사합니다.`;
+                  return dpoEmail ? (
+                    <div key={i} style={{ padding: '14px 0', borderBottom: i < 4 ? '1px solid #f1f3f5' : 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{b.title || b.name}</div>
+                          <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>{dpoEmail}</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(templateText);
+                            alert('삭제요청 템플릿이 복사되었습니다!\n\n' + dpoEmail + ' 으로 보내세요.');
+                          }}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: '#2563EB',
+                            background: '#eff6ff',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 14px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          템플릿 복사
+                        </button>
+                      </div>
+                    </div>
+                  ) : null;
+                })}
+
+                <div
+                  style={{
+                    background: '#f8f9fa',
+                    borderRadius: 12,
+                    padding: 16,
+                    marginTop: 16,
+                    fontSize: 13,
+                    color: '#495057',
+                    lineHeight: 1.6
+                  }}
+                >
+                  💡 복사한 템플릿을 해당 이메일로 보내면, 법적으로 10일 이내 처리해야 합니다. 미처리 시 개인정보보호위원회에 신고할 수 있어요.
+                </div>
+              </div>
+            )}
+
+            {/* 섹션 D: 추천 보안 도구 + 공유 + 알림 */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 20 }}>🛡️</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>추가 보안 조치</span>
+              </div>
+
+              <a
+                href="https://bitwarden.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '14px 0',
+                  borderBottom: '1px solid #f1f3f5',
+                  textDecoration: 'none',
+                  color: '#191F28'
+                }}
+              >
+                <span style={{ fontSize: 28 }}>🔐</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>비밀번호 관리자 시작하기</div>
+                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>사이트마다 다른 비밀번호를 자동 생성·저장</div>
+                </div>
+                <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>무료 →</span>
+              </a>
+
+              <a
+                href="https://support.google.com/accounts/answer/185839?hl=ko"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '14px 0',
+                  borderBottom: '1px solid #f1f3f5',
+                  textDecoration: 'none',
+                  color: '#191F28'
+                }}
+              >
+                <span style={{ fontSize: 28 }}>📱</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>2단계 인증 설정 가이드</div>
+                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>비밀번호가 유출되어도 계정을 보호</div>
+                </div>
+                <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>설정 →</span>
+              </a>
+
+              <a
+                href="https://www.eprivacy.go.kr"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '14px 0',
+                  textDecoration: 'none',
+                  color: '#191F28'
+                }}
+              >
+                <span style={{ fontSize: 28 }}>🧹</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>안 쓰는 사이트 일괄 탈퇴</div>
+                  <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>e프라이버시 클린서비스 (정부 무료)</div>
+                </div>
+                <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>바로가기 →</span>
+              </a>
+            </div>
+
+            {/* 공유 카드 */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #2563EB, #1d4ed8)',
+                borderRadius: 16,
+                padding: '28px 24px',
+                marginBottom: 16,
+                color: '#fff',
+                textAlign: 'center'
+              }}
+            >
+              <div style={{ fontSize: 15, opacity: 0.9, marginBottom: 8 }}>내 유출 결과를 공유하고</div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>주변 사람들도 확인시키세요</div>
+              <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>이미 {preregCount.toLocaleString()}명이 확인했어요</div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    const text =
+                      '내 개인정보가 ' +
+                      leakCount +
+                      '곳에서 유출되고 있었어 😱 너도 확인해봐! → ' +
+                      (typeof window !== 'undefined' ? window.location.origin : 'https://zium-eight.vercel.app');
+                    if (navigator.share) {
+                      navigator.share({ title: '지움 - 개인정보 유출 점검', text: text });
+                    } else {
+                      navigator.clipboard.writeText(text);
+                      alert('공유 텍스트가 복사되었습니다!');
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'rgba(255,255,255,0.2)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  📤 공유하기
+                </button>
+                <button
+                  onClick={() => {
+                    const url = typeof window !== 'undefined' ? window.location.origin : 'https://zium-eight.vercel.app';
+                    navigator.clipboard.writeText(url);
+                    alert('링크가 복사되었습니다!');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#fff',
+                    color: '#2563EB',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔗 링크 복사
+                </button>
               </div>
             </div>
 
-            {/* 하단 CTA */}
-            <div className="fixed bottom-0 left-0 right-0 z-50">
-              <div className="max-w-[440px] mx-auto px-6 pb-6 pt-4 bg-gradient-to-t from-white via-white to-white/0">
-                <button onClick={() => { trackEvent('cta_report_bottom'); navigateTo('pricing'); }}
-                  className="w-full bg-[#191F28] text-white font-bold rounded-2xl text-[15px] shadow-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                  style={{ paddingTop: '18px', paddingBottom: '18px' }}>
-                  내 정보 삭제 서비스 사전등록
-                  <span className="text-[12px] font-normal text-gray-400 ml-1">첫 달 무료</span>
-                </button>
-                <p className="text-center text-[10px] text-gray-400 mt-2.5">곧 출시 · 사전등록 시 첫 달 무료 혜택</p>
+            {/* 알림 등록 */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 32 }}>
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <span style={{ fontSize: 32 }}>🔔</span>
+                <div style={{ fontWeight: 800, fontSize: 18, marginTop: 8 }}>새 유출 발생 시 알림 받기</div>
+                <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>새로운 해킹 사고에 내 정보가 포함되면 바로 알려드려요</div>
               </div>
+              {!preregDone ? (
+                <div>
+                  <input
+                    type="email"
+                    placeholder="알림 받을 이메일 입력"
+                    value={preregEmail}
+                    onChange={(e) => setPreregEmail(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      border: '1.5px solid #dee2e6',
+                      borderRadius: 10,
+                      fontSize: 15,
+                      marginBottom: 12,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    onClick={handlePreregister}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      background: '#191F28',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 12,
+                      fontSize: 16,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    무료 알림 등록하기
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+                  <div style={{ fontWeight: 700, color: '#2563EB' }}>등록 완료!</div>
+                  <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>{preregEmail}로 알림을 보내드릴게요</div>
+                </div>
+              )}
             </div>
           </div>
         )}

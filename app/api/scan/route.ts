@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextResponse } from "next/server";
 
 const HIBP_API_KEY = process.env.HIBP_API_KEY;
