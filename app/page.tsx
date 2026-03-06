@@ -290,6 +290,11 @@ export default function ZiumFinal() {
     "Wattpad": "https://www.wattpad.com/settings",
     "Deezer": "https://www.deezer.com/account",
     "Zynga": "https://www.zynga.com/",
+    "Earth 2": "https://app.earth2.io/#settings",
+    "Twitter (200M)": "https://twitter.com/settings/password",
+    "Collection #1": null,
+    "2,844 Separate Data Breaches": null,
+    "Synthient Credential Stuffing Threat Data": null,
   };
 
   const dpEmails = {
@@ -571,10 +576,12 @@ export default function ZiumFinal() {
                 </div>
                 {/* ✅ [FIX 8] 공유 버튼 */}
                 <button onClick={() => {
+                  const pwdCount = breachData ? breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length : 0;
+                  const shareText = '😱 방금 내 개인정보 유출 점검했더니...\n\n' + leakCount + '곳에서 유출됨\n비밀번호 ' + pwdCount + '곳 노출\n\n무료 30초 확인 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
                   if (navigator.share) {
-                    navigator.share({ title: '지움 - 개인정보 유출 리포트', text: `내 개인정보가 ${leakCount}곳에서 유출되고 있었어요. 너도 확인해봐!`, url: window.location.origin });
+                    navigator.share({ title: '지움 - 개인정보 유출 리포트', text: shareText, url: typeof window !== 'undefined' ? window.location.origin : '' });
                   } else {
-                    navigator.clipboard?.writeText(`내 개인정보가 ${leakCount}곳에서 유출되고 있었어요. 지금 확인해보세요 → ${window.location.origin}`);
+                    navigator.clipboard?.writeText(shareText);
                     alert('링크가 복사되었습니다!');
                   }
                 }} className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full text-[11px] text-gray-300 hover:bg-white/20 transition-all">
@@ -662,7 +669,9 @@ export default function ZiumFinal() {
 
                 {breachData.breaches.filter(b => b.severity === 'critical').slice(0, 5).map((b, i) => {
                   const key = 'pwd_' + b.name;
-                  const url = passwordChangeUrls[b.name] || passwordChangeUrls[b.title] || ('https://www.google.com/search?q=' + encodeURIComponent((b.title || b.name) + ' 비밀번호 변경'));
+                  const urlEntry = b.name in passwordChangeUrls ? passwordChangeUrls[b.name] : b.title in passwordChangeUrls ? passwordChangeUrls[b.title] : undefined;
+                  const isCollection = urlEntry === null;
+                  const url = isCollection ? null : (urlEntry !== undefined ? urlEntry : 'https://www.google.com/search?q=' + encodeURIComponent((b.title || b.name) + ' 비밀번호 변경'));
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderBottom: '1px solid #f1f3f5' }}>
                       <input
@@ -681,7 +690,8 @@ export default function ZiumFinal() {
                             (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
                             1;
                           const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
-                          setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
+                          const allChecked = Object.values(next).filter(Boolean).length === totalChecks;
+                          setSafetyScoreCalc(allChecked ? 100 : Math.min(base + (count * perCheck), 99));
                         }}
                         style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
                       />
@@ -699,14 +709,18 @@ export default function ZiumFinal() {
                         <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>
                           {(b.dataClasses || []).some(dc => dc.toLowerCase().includes('password')) ? '비밀번호 유출됨 · ' : ''}{b.breachDate} 해킹
                         </div>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: 12, color: '#2563EB', fontWeight: 600, textDecoration: 'none', marginTop: 4, display: 'inline-block' }}
-                        >
-                          비밀번호 변경 →
-                        </a>
+                        {isCollection ? (
+                          <p style={{ fontSize: 12, color: '#868e96', marginTop: 4 }}>여러 사이트의 유출 데이터 모음입니다. 주요 서비스의 비밀번호를 모두 변경하세요.</p>
+                        ) : (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: '#2563EB', fontWeight: 600, textDecoration: 'none', marginTop: 4, display: 'inline-block' }}
+                          >
+                            비밀번호 변경 →
+                          </a>
+                        )}
                       </div>
                     </div>
                   );
@@ -735,7 +749,8 @@ export default function ZiumFinal() {
                             (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
                             1;
                           const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
-                          setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
+                          const allChecked = Object.values(next).filter(Boolean).length === totalChecks;
+                          setSafetyScoreCalc(allChecked ? 100 : Math.min(base + (count * perCheck), 99));
                         }}
                         style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
                       />
@@ -773,7 +788,8 @@ export default function ZiumFinal() {
                         (breachData?.breaches?.filter(b => b.severity !== 'critical').slice(0, 3).length || 0) +
                         1;
                       const perCheck = Math.floor(maxGain / Math.max(totalChecks, 1));
-                      setSafetyScoreCalc(Math.min(base + (count * perCheck), 100));
+                      const allChecked = Object.values(next).filter(Boolean).length === totalChecks;
+                      setSafetyScoreCalc(allChecked ? 100 : Math.min(base + (count * perCheck), 99));
                     }}
                     style={{ width: 22, height: 22, accentColor: '#2563EB', cursor: 'pointer' }}
                   />
@@ -1015,8 +1031,8 @@ export default function ZiumFinal() {
                   }}
                 >
                   {(() => {
-                    const topNames = breachData.breaches.slice(0, 3).map(b => b.title || b.name).join(', ');
-                    return `😱 내 개인정보가 ${leakCount}곳에서 유출! ${topNames}`;
+                    const pwdCount = breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length;
+                    return `내 개인정보가 ${leakCount}곳에서 유출! 비밀번호 ${pwdCount}곳 노출. 당신은 안전한가요?`;
                   })()}
                 </div>
               )}
@@ -1024,15 +1040,8 @@ export default function ZiumFinal() {
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button
                   onClick={() => {
-                    const text =
-                      '😱 내 개인정보가 ' +
-                      leakCount +
-                      '곳에서 유출되고 있었어!\n유출된 곳: ' +
-                      (breachData && breachData.breaches
-                        ? breachData.breaches.slice(0, 3).map(b => b.title || b.name).join(', ')
-                        : '') +
-                      '\n\n너도 무료로 확인해봐 → ' +
-                      (typeof window !== 'undefined' ? window.location.origin : '');
+                    const pwdCount = breachData ? breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length : 0;
+                    const text = '😱 방금 내 개인정보 유출 점검했더니...\n\n' + leakCount + '곳에서 유출됨\n비밀번호 ' + pwdCount + '곳 노출\n\n무료 30초 확인 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
                     if (navigator.share) {
                       navigator.share({ title: '지움 - 개인정보 유출 점검', text: text });
                     } else {
