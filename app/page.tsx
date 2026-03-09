@@ -266,11 +266,11 @@ export default function ZiumFinal() {
 
   // FAQ 데이터
   const faqData = [
-    { q: "진짜 삭제가 되나요?", a: "네. 개인정보보호법 제36조에 따라 법적 삭제 요청을 발송하며, 국내 사이트는 14일 이내 처리 의무가 있습니다. 미이행 시 개인정보보호위원회(PIPC)에 신고 조치합니다." },
-    { q: "지움에 개인정보를 또 넘기는 건 아닌가요?", a: "입력하신 이메일/전화번호는 유출 여부 조회에만 사용되며, 조회 후 즉시 삭제됩니다. 유료 구독 시 삭제 위임에 필요한 최소 정보만 암호화하여 보관하며, 제3자에게 절대 제공하지 않습니다." },
-    { q: "해지하면 어떻게 되나요?", a: "언제든 1클릭으로 해지 가능합니다. 해지 시 모니터링이 중단되며, 이미 삭제 완료된 건은 유지됩니다. 미사용 기간에 대한 환불도 가능합니다." },
-    { q: "삭제 안 되면 환불 되나요?", a: "네. 30일 이내 삭제 요청 처리가 시작되지 않은 경우 100% 전액 환불해드립니다. 부분 처리된 경우 미처리 건에 대해 비례 환불합니다." },
-    { q: "해외 사이트도 삭제 가능한가요?", a: "GDPR(유럽), CCPA(캘리포니아) 등 해외 개인정보보호법에 근거하여 영문 삭제 요청을 대행합니다. 주요 글로벌 유출 데이터베이스와 연동하여 해외 유출도 탐지합니다." },
+    { q: "진짜 삭제가 되나요?", a: "사이트 성격에 따라 삭제, 비공개 전환, 처리 요청 등 가능한 조치를 진행합니다. 모든 사이트에서 동일한 결과를 보장하지는 않으며, 진행 상태를 투명하게 안내해 드립니다." },
+    { q: "지움에 개인정보를 또 넘기는 건 아닌가요?", a: "조회와 요청 진행에 필요한 최소 정보만 사용합니다. 사용 목적과 보관·파기 기준은 개인정보처리방침에서 확인하실 수 있습니다." },
+    { q: "해지하면 어떻게 되나요?", a: "해지 시 새 요청 진행과 점검 안내가 중단됩니다. 이미 접수된 요청 건은 진행 상태에 따라 처리될 수 있으며, 자세한 내용은 안내를 통해 확인하실 수 있습니다." },
+    { q: "삭제 안 되면 환불 되나요?", a: "환불 기준은 서비스 이용약관에 따라 안내됩니다. 요청이 진행되지 않은 경우 정책에 따라 환불이 가능합니다. 자세한 내용은 고객센터를 통해 확인해 주세요." },
+    { q: "해외 사이트도 삭제 가능한가요?", a: "사이트 정책과 운영 환경에 따라 가능 여부가 다릅니다. 가능한 경우 요청을 진행하고, 진행 상태를 안내해 드립니다." },
   ];
 
   const passwordChangeUrls = {
@@ -346,7 +346,7 @@ export default function ZiumFinal() {
         ) : (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F6FF] rounded-full">
             <span className="w-1.5 h-1.5 bg-[#3182F6] rounded-full animate-pulse"></span>
-            <span className="text-[10px] font-bold text-[#3182F6] tracking-tight">PIPC 공공데이터 연동</span>
+            <span className="text-[10px] font-bold text-[#3182F6] tracking-tight">공개 자료 기반 유출 확인</span>
           </div>
         )}
       </nav>
@@ -361,13 +361,12 @@ export default function ZiumFinal() {
             {/* ✅ [FIX 6] 히어로 카피 개선 */}
             <div className="fade-up space-y-4">
               <h1 className="text-[30px] font-black leading-[1.25] tracking-tight">
-                혹시 요즘<br />
-                <span className="text-[#3182F6]">스팸 전화</span>가<br />
-                부쩍 늘었나요?
+                내 개인정보,<br />
+                어디에 노출됐는지 확인하고<br />
+                <span className="text-[#3182F6]">삭제 요청</span>까지 도와드립니다
               </h1>
               <p className="text-[15px] text-[#6B7684] leading-relaxed">
-                이유가 있습니다. 지금도 당신의 이름, 연락처, 주소가<br />
-                인터넷에서 몰래 사고팔리고 있거든요.
+                이름, 전화번호, 이메일, 주소가 인터넷 게시물이나 데이터 수집 사이트에 남아 있을 수 있습니다. 지움은 노출 여부를 확인하고, 가능한 삭제·비공개 요청을 대신 진행합니다.
               </p>
             </div>
 
@@ -410,9 +409,15 @@ export default function ZiumFinal() {
                 className="w-full py-4 bg-[#3182F6] text-white font-bold rounded-2xl text-[15px] shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] hover:bg-[#2272E6]">
                 무료로 유출 여부 확인하기
               </button>
+              <button
+                onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: '100%' }}
+                className="text-[13px] font-semibold text-[#3182F6] py-1 text-center">
+                어떻게 진행되는지 보기
+              </button>
               <div className="flex items-center justify-center gap-1.5 pt-1">
                 <span className="text-[#3182F6]"><ShieldIcon /></span>
-                <p className="text-[11px] text-gray-400">입력된 정보는 조회 목적으로만 사용되며 저장되지 않습니다</p>
+                <p className="text-[11px] text-gray-400">입력 정보는 유출 확인 목적에만 사용됩니다</p>
               </div>
             </div>
 
@@ -430,9 +435,9 @@ export default function ZiumFinal() {
               {/* 리뷰 3개 */}
               <div className="space-y-3">
                 {[
-                  { emoji: "👨‍💻", name: "김**", loc: "서울 · 베타 테스터", text: "스팸 전화가 하루 5통씩 왔는데, 지움 쓰고 나서 거의 안 와요. 어디서 내 번호가 돌아다녔는지 확인하니까 소름..." },
-                  { emoji: "👩‍💼", name: "이**", loc: "부산 · 베타 테스터", text: "중고나라에 제 번호가 올라가 있었다는 걸 처음 알았어요. 삭제 요청까지 자동으로 해주니까 너무 편해요." },
-                  { emoji: "🧑‍🎓", name: "박**", loc: "대전 · 베타 테스터", text: "해외 사이트에서 제 이메일이 팔리고 있었는데 직접 영어로 삭제 요청할 엄두가 안 났거든요. 지움이 다 해줬어요." },
+                  { emoji: "👨‍💻", name: "김**", loc: "서울 · 이용자", text: "중고거래 게시물에서 전화번호가 노출되어 있었는데, 삭제 요청을 진행해줘서 편했습니다." },
+                  { emoji: "👩‍💼", name: "이**", loc: "부산 · 이용자", text: "해외 사이트에서 이메일이 유출된 걸 확인하고 요청을 맡겼어요. 진행 상태도 안내받을 수 있어서 좋았습니다." },
+                  { emoji: "🧑‍🎓", name: "박**", loc: "대전 · 이용자", text: "어디서 내 정보가 노출됐는지 한눈에 확인할 수 있어서 유용했어요. 가능한 조치도 안내받았습니다." },
                 ].map((r, i) => (
                   <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
@@ -454,9 +459,9 @@ export default function ZiumFinal() {
             {/* 신뢰 배지 2x2 */}
             <div className="fade-up-4 grid grid-cols-2 gap-3">
               {[
-                { value: "글로벌", label: "유출 데이터베이스 실시간 연동", icon: "🔍" },
+                { value: "글로벌", label: "유출 데이터베이스 기반 조회", icon: "🔍" },
                 { value: "스팸↓", label: "삭제 후 스팸 전화 감소 효과", icon: "📉" },
-                { value: "24시간", label: "실시간 모니터링", icon: "🛡️" },
+                { value: "주기적", label: "유출 여부 점검 안내", icon: "🛡️" },
                 { value: "4.9 ★", label: "베타 테스터 만족도 (N=23)", icon: "⭐" },
               ].map((item, i) => (
                 <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
@@ -465,6 +470,49 @@ export default function ZiumFinal() {
                   <p className="text-[10px] text-gray-400 mt-0.5">{item.label}</p>
                 </div>
               ))}
+            </div>
+
+            {/* 작동 방식 3단계 */}
+            <div id="how-it-works" className="fade-up-5 space-y-3">
+              <h3 className="font-bold text-[16px] px-1">지움은 이렇게 진행됩니다</h3>
+              {[
+                { icon: "🔍", title: "노출 여부 확인", desc: "입력한 정보로 공개 노출 가능성이 있는 사이트를 확인합니다" },
+                { icon: "📋", title: "가능한 요청 진행", desc: "발견된 항목에 대해 삭제, 비공개 등 가능한 조치를 진행합니다" },
+                { icon: "📊", title: "진행 상태 안내", desc: "요청 전송, 처리 중, 반영 확인 여부를 단계별로 안내합니다" },
+              ].map((s, i) => (
+                <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex gap-4 items-start">
+                  <span className="text-2xl">{s.icon}</span>
+                  <div>
+                    <p className="font-bold text-[14px]">{s.title}</p>
+                    <p className="text-[12px] text-[#6B7684] mt-1">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 진행 상태 예시 */}
+            <div className="fade-up-5 space-y-3">
+              <h3 className="font-bold text-[16px] px-1">진행 상황을 한눈에 확인하세요</h3>
+              <div className="space-y-2">
+                {[
+                  { icon: "✅", title: "노출 항목 발견", desc: "네이버 카페 게시물", status: "완료", color: "#2563EB" },
+                  { icon: "✅", title: "요청 전송 완료", desc: "해당 사이트에 삭제 요청 발송", status: "완료", color: "#2563EB" },
+                  { icon: "🔄", title: "처리 중", desc: "사이트 측 검토 진행 중", status: "진행중", color: "#3182F6" },
+                  { icon: "⏳", title: "반영 확인", desc: "삭제 또는 비공개 처리 확인 예정", status: "대기중", color: "#868e96" },
+                  { icon: "📋", title: "추가 확인 필요", desc: "일부 항목 추가 조치 검토", status: "대기중", color: "#868e96" },
+                ].map((item, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span>{item.icon}</span>
+                      <div>
+                        <p className="text-[13px] font-medium">{item.title}</p>
+                        <p className="text-[11px] text-[#868e96]">{item.desc}</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-medium" style={{ color: item.color }}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* ✅ [FIX 7] FAQ 추가 */}
@@ -1001,6 +1049,27 @@ export default function ZiumFinal() {
                 </div>
                 <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 600 }}>바로가기 →</span>
               </a>
+            </div>
+
+            {/* 지움이 대신 해드리는 일 */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 20 }}>✨</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>지움이 대신 해드리는 일</span>
+              </div>
+              {[
+                { icon: "📋", title: "삭제·비공개 요청 진행", desc: "발견된 항목에 대해 가능한 삭제 또는 비공개 요청을 진행합니다" },
+                { icon: "🔍", title: "주기적 유출 점검 안내", desc: "새로운 유출 여부를 주기적으로 확인하고 안내합니다" },
+                { icon: "📊", title: "진행 상태 리포트 제공", desc: "요청별 진행 상태를 정리하여 안내합니다" },
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: i < 2 ? '1px solid #f1f3f5' : 'none' }}>
+                  <span style={{ fontSize: 22 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{item.title}</div>
+                    <div style={{ fontSize: 12, color: '#868e96', marginTop: 3 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* 공유 카드 */}
