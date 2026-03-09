@@ -19,6 +19,89 @@ const normalizePhone = (v) => (v || "").replace(/[^\d]/g, "");
 const isValidPhone = (v) => { const n = normalizePhone(v); return n.length === 10 || n.length === 11; };
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || "");
 
+// ─── 정적 데이터 (컴포넌트 외부 — 렌더링마다 재생성 방지) ───
+const faqData = [
+  {
+    q: "이메일만으로 무엇을 확인하나요?",
+    a: "입력한 이메일이 공개된 유출 이력에 포함되었는지 확인합니다. 유출 횟수, 최근 유출 여부, 노출된 데이터 유형 등을 바탕으로 결과를 보여드리며, 모든 보안 위험을 완전히 보여주는 것은 아닙니다."
+  },
+  {
+    q: "유출 이력이 있다는 건 무슨 뜻인가요?",
+    a: "이 이메일 주소가 과거 공개된 유출 사건 데이터에 포함되었을 수 있다는 뜻입니다. 바로 피해가 발생했다는 의미는 아니지만, 피싱 메일이나 계정 보안 점검이 필요할 수 있습니다."
+  },
+  {
+    q: "결과는 얼마나 정확한가요?",
+    a: "공개된 유출 이력을 기준으로 확인합니다. 알려지지 않은 유출이나 모든 보안 문제를 완전히 보여주지는 않을 수 있으며, 참고용 진단 결과로 활용해 주세요."
+  },
+  {
+    q: "이 점수는 어떻게 계산되나요?",
+    a: "공개 유출 이력과 현재 보안 조치 상태를 바탕으로 보여주는 참고용 점수입니다. 내 상태를 한눈에 파악할 수 있도록 돕는 지표로 봐주세요."
+  },
+  {
+    q: "점수가 높으면 바로 위험한 건가요?",
+    a: "점수가 높다고 해서 바로 피해가 발생했다는 뜻은 아닙니다. 유출 이력과 현재 조치 상태를 기준으로 점검 우선순위가 높을 수 있다는 신호로 보시면 됩니다."
+  },
+  {
+    q: "바로 어떤 조치를 해야 하나요?",
+    a: "주요 계정의 비밀번호를 점검하고, 2단계 인증을 설정하고, 피싱 메일을 주의하는 것이 좋습니다. 결과 화면에서 권장 조치를 바로 확인할 수 있습니다."
+  },
+  {
+    q: "유출 이력이 없으면 안전한 건가요?",
+    a: "현재 공개된 유출 이력 기준으로는 확인되지 않았다는 뜻입니다. 이것이 모든 보안 위험이 없다는 의미는 아니므로, 기본적인 보안 점검은 계속하는 것이 좋습니다."
+  },
+  {
+    q: "내 이메일은 저장되나요?",
+    a: "입력한 이메일은 유출 이력 확인과 재점검 알림 등록 목적에 한해 사용됩니다. 자세한 내용은 개인정보처리방침에서 확인하실 수 있습니다."
+  },
+  {
+    q: "같은 이메일로 다시 확인할 수 있나요?",
+    a: "같은 이메일로 언제든 다시 확인할 수 있습니다. 원하시면 30일 후 다시 점검할 수 있도록 알림 등록도 할 수 있습니다."
+  },
+  {
+    q: "30일 후 재점검 알림은 어떻게 동작하나요?",
+    a: "이메일을 등록하면 다음 점검 시점에 다시 확인할 수 있도록 안내해드립니다. 현재는 주기적인 재점검을 돕는 용도로 제공되며, 실시간 모니터링 서비스는 아닙니다."
+  },
+];
+
+const passwordChangeUrls: Record<string, string | null> = {
+  "Dropbox": "https://www.dropbox.com/account/security",
+  "Twitter": "https://twitter.com/settings/password",
+  "Adobe": "https://account.adobe.com/security",
+  "LinkedIn": "https://www.linkedin.com/psettings/change-password",
+  "Facebook": "https://www.facebook.com/settings?tab=security",
+  "Canva": "https://www.canva.com/settings/account",
+  "CoinMarketCap": "https://coinmarketcap.com/account/security/",
+  "Houzz": "https://www.houzz.com/user/account",
+  "Jefit": "https://www.jefit.com/my-jefit/account-settings/",
+  "MyFitnessPal": "https://www.myfitnesspal.com/account/change_password",
+  "Duolingo": "https://www.duolingo.com/settings/account",
+  "Bitly": "https://app.bitly.com/settings/profile/",
+  "Imgur": "https://imgur.com/account/settings",
+  "Wattpad": "https://www.wattpad.com/settings",
+  "Deezer": "https://www.deezer.com/account",
+  "Zynga": "https://www.zynga.com/",
+  "Earth 2": "https://app.earth2.io/#settings",
+  "Twitter (200M)": "https://twitter.com/settings/password",
+  "Collection #1": null,
+  "2,844 Separate Data Breaches": null,
+  "Synthient Credential Stuffing Threat Data": null,
+};
+
+const dpEmails: Record<string, string> = {
+  "Dropbox": "privacy@dropbox.com",
+  "Twitter": "privacy@twitter.com",
+  "Adobe": "privacy@adobe.com",
+  "LinkedIn": "privacy@linkedin.com",
+  "Facebook": "privacy@fb.com",
+  "Canva": "privacy@canva.com",
+  "Houzz": "privacy@houzz.com",
+  "집꾸미기": "cs@zipkumi.com",
+};
+
+// ─── 위험도 등급 헬퍼 (riskScore = 100 - safetyScoreCalc) ───
+const getRiskGrade = (s) => s >= 80 ? '매우 높음' : s >= 60 ? '높음' : s >= 30 ? '주의' : '낮음';
+const getRiskColor = (s) => s >= 80 ? '#e03131' : s >= 60 ? '#e67700' : s >= 30 ? '#fcc419' : '#51cf66';
+
 export default function ZiumFinal() {
   const [step, setStep] = useState('landing');
   const [loadingText, setLoadingText] = useState("");
@@ -42,12 +125,18 @@ export default function ZiumFinal() {
   const [checkedActions, setCheckedActions] = useState({});
   const [safetyScoreCalc, setSafetyScoreCalc] = useState(10);
   const [show2faGuide, setShow2faGuide] = useState(false);
+  const [phishingChecked, setPhishingChecked] = useState(false);
+  const [prevRiskScore, setPrevRiskScore] = useState(null);   // 직전 방문의 점수
+  const [initRiskScore, setInitRiskScore] = useState(null);   // 이번 방문 초기 점수
+  const [preregError, setPreregError] = useState("");
+  const [preregLoading, setPreregLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
   const emailRef = useRef(null);
 
   // ✅ [FIX 1] 하이드레이션: 클라이언트에서만 날짜 세팅
   useEffect(() => {
     setTodayStr(new Date().toLocaleDateString('ko-KR'));
-    document.title = "지움 | 내 개인정보, 지워드립니다";
+    document.title = "지움 | 이메일 유출 이력 무료 진단";
   }, []);
 
   // GA4 이벤트 트래킹
@@ -59,22 +148,44 @@ export default function ZiumFinal() {
     if (typeof window !== 'undefined') console.log(`[GA4] ${eventName}`, params);
   };
 
-  // 사전등록 제출 (서버 API 경유 — OpenAI 체리픽)
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 2000);
+  };
+
+  // 사전등록 제출 (서버 API 경유)
   const handlePreregister = async () => {
-    if (!preregEmail || !isValidEmail(preregEmail)) return;
+    if (!preregEmail || !isValidEmail(preregEmail)) {
+      setPreregError('올바른 이메일을 입력해주세요');
+      return;
+    }
+    setPreregLoading(true);
+    setPreregError('');
     trackEvent('pre_register_submit', { plan: selectedPlan, email_domain: preregEmail.split('@')[1] });
 
     try {
-      await fetch('/api/preregister', {
+      const res = await fetch('/api/preregister', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: preregEmail, plan: selectedPlan, leakCount })
       });
-    } catch (e) { console.error('사전등록 전송 에러:', e); }
-
-    setPreregDone(true);
-    setPreregCount(prev => prev + 1);
-    trackEvent('pre_register_complete', { plan: selectedPlan });
+      const data = await res.json();
+      if (data.ok) {
+        setPreregDone(true);
+        setPreregCount(prev => prev + 1);
+        trackEvent('pre_register_complete', { plan: selectedPlan });
+      } else {
+        const msg =
+          data.error === 'rate_limited' ? '잠시 후 다시 시도해주세요' :
+          data.error === 'invalid_email' ? '올바른 이메일을 입력해주세요' :
+          '일시적 오류가 발생했습니다. 잠시 후 다시 시도해주세요';
+        setPreregError(msg);
+      }
+    } catch (e) {
+      setPreregError('연결 오류가 발생했습니다');
+    } finally {
+      setPreregLoading(false);
+    }
   };
 
   // ✅ [FIX 4] 뒤로가기 처리
@@ -185,7 +296,7 @@ export default function ZiumFinal() {
   useEffect(() => {
     if (step === 'scan') {
       const tasks = [
-        { t: "개인정보보호위원회 유출 신고 데이터 대조 중...", p: 15, phase: 1 },
+        { t: "이메일 주소 유출 데이터베이스 대조 중...", p: 15, phase: 1 },
         { t: (email || phone) + " 관련 유출 이력 조회 중...", p: 30, phase: 1 },
         { t: "글로벌 유출 데이터베이스(HIBP) 정밀 분석 중...", p: 50, phase: 2 },
         { t: "유출 경로 분석 및 피해 규모 산정 중...", p: 70, phase: 3 },
@@ -232,7 +343,19 @@ export default function ZiumFinal() {
       const total = breachData.totalBreaches || 0;
       const critical = breachData.summary?.critical || 0;
       const base = Math.max(5, 50 - (total * 3) - (critical * 5));
-      setSafetyScoreCalc(Math.min(Math.max(base, 5), 45));
+      const computed = Math.min(Math.max(base, 5), 45);
+      const thisRisk = 100 - computed;
+
+      // ✅ [3차 FIX 4] localStorage 이전 점수 비교
+      try {
+        const prev = localStorage.getItem('zium_last_risk');
+        if (prev) setPrevRiskScore(parseInt(prev, 10));
+        localStorage.setItem('zium_last_risk', String(thisRisk));
+        localStorage.setItem('zium_last_check', new Date().toLocaleDateString('ko-KR'));
+      } catch (e) {}
+
+      setInitRiskScore(thisRisk);
+      setSafetyScoreCalc(computed);
       setCheckedActions({});
     }
   }, [step, breachData]);
@@ -264,49 +387,8 @@ export default function ZiumFinal() {
     } catch (e) { setScanError("network_error"); } finally { setIsScanning(false); }
   };
 
-  // FAQ 데이터
-  const faqData = [
-    { q: "진짜 삭제가 되나요?", a: "사이트 성격에 따라 삭제, 비공개 전환, 처리 요청 등 가능한 조치를 진행합니다. 모든 사이트에서 동일한 결과를 보장하지는 않으며, 진행 상태를 투명하게 안내해 드립니다." },
-    { q: "지움에 개인정보를 또 넘기는 건 아닌가요?", a: "조회와 요청 진행에 필요한 최소 정보만 사용합니다. 사용 목적과 보관·파기 기준은 개인정보처리방침에서 확인하실 수 있습니다." },
-    { q: "해지하면 어떻게 되나요?", a: "해지 시 새 요청 진행과 점검 안내가 중단됩니다. 이미 접수된 요청 건은 진행 상태에 따라 처리될 수 있으며, 자세한 내용은 안내를 통해 확인하실 수 있습니다." },
-    { q: "삭제 안 되면 환불 되나요?", a: "환불 기준은 서비스 이용약관에 따라 안내됩니다. 요청이 진행되지 않은 경우 정책에 따라 환불이 가능합니다. 자세한 내용은 고객센터를 통해 확인해 주세요." },
-    { q: "해외 사이트도 삭제 가능한가요?", a: "사이트 정책과 운영 환경에 따라 가능 여부가 다릅니다. 가능한 경우 요청을 진행하고, 진행 상태를 안내해 드립니다." },
-  ];
-
-  const passwordChangeUrls = {
-    "Dropbox": "https://www.dropbox.com/account/security",
-    "Twitter": "https://twitter.com/settings/password",
-    "Adobe": "https://account.adobe.com/security",
-    "LinkedIn": "https://www.linkedin.com/psettings/change-password",
-    "Facebook": "https://www.facebook.com/settings?tab=security",
-    "Canva": "https://www.canva.com/settings/account",
-    "CoinMarketCap": "https://coinmarketcap.com/account/security/",
-    "Houzz": "https://www.houzz.com/user/account",
-    "Jefit": "https://www.jefit.com/my-jefit/account-settings/",
-    "MyFitnessPal": "https://www.myfitnesspal.com/account/change_password",
-    "Duolingo": "https://www.duolingo.com/settings/account",
-    "Bitly": "https://app.bitly.com/settings/profile/",
-    "Imgur": "https://imgur.com/account/settings",
-    "Wattpad": "https://www.wattpad.com/settings",
-    "Deezer": "https://www.deezer.com/account",
-    "Zynga": "https://www.zynga.com/",
-    "Earth 2": "https://app.earth2.io/#settings",
-    "Twitter (200M)": "https://twitter.com/settings/password",
-    "Collection #1": null,
-    "2,844 Separate Data Breaches": null,
-    "Synthient Credential Stuffing Threat Data": null,
-  };
-
-  const dpEmails = {
-    "Dropbox": "privacy@dropbox.com",
-    "Twitter": "privacy@twitter.com",
-    "Adobe": "privacy@adobe.com",
-    "LinkedIn": "privacy@linkedin.com",
-    "Facebook": "privacy@fb.com",
-    "Canva": "privacy@canva.com",
-    "Houzz": "privacy@houzz.com",
-    "집꾸미기": "cs@zipkumi.com",
-  };
+  // 위험 점수 (안전점수의 역수: 낮은 안전점수 = 높은 위험)
+  const riskScore = 100 - safetyScoreCalc;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#191F28]" style={{ fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
@@ -351,6 +433,13 @@ export default function ZiumFinal() {
         )}
       </nav>
 
+      {/* 토스트 메시지 */}
+      {toastMsg && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-[#191F28] text-white text-[13px] font-medium rounded-full shadow-xl pointer-events-none whitespace-nowrap">
+          {toastMsg}
+        </div>
+      )}
+
       <main className="max-w-[440px] mx-auto min-h-screen pb-32">
 
         {/* ════════════════════════════════
@@ -358,15 +447,14 @@ export default function ZiumFinal() {
         ════════════════════════════════ */}
         {step === 'landing' && (
           <div className="px-7 pt-10 pb-8 space-y-8">
-            {/* ✅ [FIX 6] 히어로 카피 개선 */}
-            <div className="fade-up space-y-4">
-              <h1 className="text-[30px] font-black leading-[1.25] tracking-tight">
-                내 개인정보,<br />
-                어디에 노출됐는지 확인하고<br />
-                <span className="text-[#3182F6]">삭제 요청</span>까지 도와드립니다
+            {/* ✅ [3차 FIX 1] 히어로 카피 — 바로 확인해보는 도구 느낌 */}
+            <div className="fade-up space-y-3">
+              <h1 className="text-[32px] font-black leading-[1.2] tracking-tight">
+                내 이메일,<br />
+                <span className="text-[#3182F6]">안전한가요?</span>
               </h1>
               <p className="text-[15px] text-[#6B7684] leading-relaxed">
-                이름, 전화번호, 이메일, 주소가 인터넷 게시물이나 데이터 수집 사이트에 남아 있을 수 있습니다. 지움은 노출 여부를 확인하고, 가능한 삭제·비공개 요청을 대신 진행합니다.
+                이메일 주소 입력 하나로 유출 이력을 바로 확인해보세요. 30초면 됩니다.
               </p>
             </div>
 
@@ -376,8 +464,8 @@ export default function ZiumFinal() {
                 <span className="text-red-400"><AlertIcon /></span>
               </div>
               <div>
-                <p className="text-white font-bold text-[14px]">일 평균 <span className="text-red-400">2만건 이상</span> 개인정보 유출</p>
-                <p className="text-gray-500 text-[11px] mt-0.5">2024 개인정보보호위원회 연간 보고서 기반 일환산</p>
+                <p className="text-white font-bold text-[14px]">매년 <span className="text-red-400">수억 건</span>의 이메일 유출 이력 공개 확인 가능</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">Have I Been Pwned 등 글로벌 유출 DB 기반</p>
               </div>
             </div>
 
@@ -385,7 +473,7 @@ export default function ZiumFinal() {
             <div className="fade-up-2 bg-white rounded-[28px] p-6 shadow-sm border border-gray-100 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[#3182F6]"><SearchIcon /></span>
-                <h3 className="font-bold text-[15px]">내 개인정보 유출 여부 확인</h3>
+                <h3 className="font-bold text-[15px]">이메일 유출 이력 무료 진단</h3>
               </div>
               <div className="space-y-3">
                 <input ref={emailRef} type="email" placeholder="이메일 주소 입력" value={email}
@@ -407,18 +495,21 @@ export default function ZiumFinal() {
               )}
               <button onClick={handleScan}
                 className="w-full py-4 bg-[#3182F6] text-white font-bold rounded-2xl text-[15px] shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] hover:bg-[#2272E6]">
-                무료로 유출 여부 확인하기
+                무료로 위험도 확인하기
               </button>
               <button
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', width: '100%' }}
                 className="text-[13px] font-semibold text-[#3182F6] py-1 text-center">
-                어떻게 진행되는지 보기
+                결과 예시 보기
               </button>
               <div className="flex items-center justify-center gap-1.5 pt-1">
                 <span className="text-[#3182F6]"><ShieldIcon /></span>
-                <p className="text-[11px] text-gray-400">입력 정보는 유출 확인 목적에만 사용됩니다</p>
+                <p className="text-[11px] text-gray-400">입력한 이메일은 유출 이력 확인 목적에만 사용됩니다</p>
               </div>
+              <p className="text-[10px] text-gray-400 text-center leading-relaxed">
+                * 공개된 유출 이력 기준으로 확인합니다. 모든 유출을 완전히 반영하지 않을 수 있습니다.
+              </p>
             </div>
 
             {/* 소셜 프루프 */}
@@ -435,9 +526,9 @@ export default function ZiumFinal() {
               {/* 리뷰 3개 */}
               <div className="space-y-3">
                 {[
-                  { emoji: "👨‍💻", name: "김**", loc: "서울 · 이용자", text: "중고거래 게시물에서 전화번호가 노출되어 있었는데, 삭제 요청을 진행해줘서 편했습니다." },
-                  { emoji: "👩‍💼", name: "이**", loc: "부산 · 이용자", text: "해외 사이트에서 이메일이 유출된 걸 확인하고 요청을 맡겼어요. 진행 상태도 안내받을 수 있어서 좋았습니다." },
-                  { emoji: "🧑‍🎓", name: "박**", loc: "대전 · 이용자", text: "어디서 내 정보가 노출됐는지 한눈에 확인할 수 있어서 유용했어요. 가능한 조치도 안내받았습니다." },
+                  { emoji: "👨‍💻", name: "김**", loc: "서울 · 이용자", text: "내 이메일이 여러 번 유출 이력에 포함된 걸 처음 알았어요. 결과를 보고 바로 비밀번호부터 바꿨습니다." },
+                  { emoji: "👩‍💼", name: "이**", loc: "부산 · 이용자", text: "최근 유출 여부랑 위험도를 같이 보여줘서, 무조건 불안하기보다 뭘 해야 하는지 바로 알 수 있었어요." },
+                  { emoji: "🧑‍🎓", name: "박**", loc: "대전 · 이용자", text: "단순 조회가 아니라 바로 해야 할 보안 조치를 알려줘서 유용했습니다." },
                 ].map((r, i) => (
                   <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
@@ -459,10 +550,10 @@ export default function ZiumFinal() {
             {/* 신뢰 배지 2x2 */}
             <div className="fade-up-4 grid grid-cols-2 gap-3">
               {[
-                { value: "글로벌", label: "유출 데이터베이스 기반 조회", icon: "🔍" },
-                { value: "스팸↓", label: "삭제 후 스팸 전화 감소 효과", icon: "📉" },
-                { value: "주기적", label: "유출 여부 점검 안내", icon: "🛡️" },
-                { value: "4.9 ★", label: "베타 테스터 만족도 (N=23)", icon: "⭐" },
+                { value: "글로벌", label: "공개 유출 이력 기반 확인", icon: "🔍" },
+                { value: "무료", label: "이메일 1개로 바로 확인", icon: "📧" },
+                { value: "즉시", label: "위험도 및 조치 결과 즉시 제공", icon: "🛡️" },
+                { value: "4.9 ★", label: "이용자 만족도 (N=23)", icon: "⭐" },
               ].map((item, i) => (
                 <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
                   <span className="text-lg">{item.icon}</span>
@@ -474,11 +565,11 @@ export default function ZiumFinal() {
 
             {/* 작동 방식 3단계 */}
             <div id="how-it-works" className="fade-up-5 space-y-3">
-              <h3 className="font-bold text-[16px] px-1">지움은 이렇게 진행됩니다</h3>
+              <h3 className="font-bold text-[16px] px-1">지움은 이렇게 확인합니다</h3>
               {[
-                { icon: "🔍", title: "노출 여부 확인", desc: "입력한 정보로 공개 노출 가능성이 있는 사이트를 확인합니다" },
-                { icon: "📋", title: "가능한 요청 진행", desc: "발견된 항목에 대해 삭제, 비공개 등 가능한 조치를 진행합니다" },
-                { icon: "📊", title: "진행 상태 안내", desc: "요청 전송, 처리 중, 반영 확인 여부를 단계별로 안내합니다" },
+                { icon: "📧", title: "이메일 확인", desc: "입력한 이메일이 공개 유출 이력에 포함됐는지 확인합니다" },
+                { icon: "🔍", title: "위험도 분석", desc: "유출 횟수, 최근 유출 여부, 노출 데이터 유형을 바탕으로 위험도를 해석합니다" },
+                { icon: "🛡️", title: "보안 조치 안내", desc: "비밀번호 점검, 2단계 인증, 피싱 주의 등 바로 해야 할 행동을 알려드립니다" },
               ].map((s, i) => (
                 <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex gap-4 items-start">
                   <span className="text-2xl">{s.icon}</span>
@@ -490,16 +581,16 @@ export default function ZiumFinal() {
               ))}
             </div>
 
-            {/* 진행 상태 예시 */}
+            {/* ✅ [2차 FIX 5] 결과 예시 — 점수 먼저, 행동 중심 */}
             <div className="fade-up-5 space-y-3">
-              <h3 className="font-bold text-[16px] px-1">진행 상황을 한눈에 확인하세요</h3>
+              <h3 className="font-bold text-[16px] px-1">결과 예시 — 이렇게 행동하세요</h3>
               <div className="space-y-2">
                 {[
-                  { icon: "✅", title: "노출 항목 발견", desc: "네이버 카페 게시물", status: "완료", color: "#2563EB" },
-                  { icon: "✅", title: "요청 전송 완료", desc: "해당 사이트에 삭제 요청 발송", status: "완료", color: "#2563EB" },
-                  { icon: "🔄", title: "처리 중", desc: "사이트 측 검토 진행 중", status: "진행중", color: "#3182F6" },
-                  { icon: "⏳", title: "반영 확인", desc: "삭제 또는 비공개 처리 확인 예정", status: "대기중", color: "#868e96" },
-                  { icon: "📋", title: "추가 확인 필요", desc: "일부 항목 추가 조치 검토", status: "대기중", color: "#868e96" },
+                  { icon: "🎯", title: "보안 위험 점수 75점", desc: "위험 수준: 높음 · 공개 이력 기준", status: "높음", color: "#e67700" },
+                  { icon: "📊", title: "유출 이력 6건 발견", desc: "공개 유출 이력 기반 확인 완료", status: "확인됨", color: "#2563EB" },
+                  { icon: "✅", title: "지금 바로 할 조치 3개", desc: "비밀번호 변경, 2FA 설정 등 안내", status: "바로 시작", color: "#2f9e44" },
+                  { icon: "⚠️", title: "최근 유출 있음", desc: "2024년 이후 유출 이력 포함", status: "주의", color: "#e67700" },
+                  { icon: "🔑", title: "노출된 데이터 유형", desc: "비밀번호, 이메일, IP 주소 등", status: "확인됨", color: "#2563EB" },
                 ].map((item, i) => (
                   <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -509,7 +600,7 @@ export default function ZiumFinal() {
                         <p className="text-[11px] text-[#868e96]">{item.desc}</p>
                       </div>
                     </div>
-                    <span className="text-[11px] font-medium" style={{ color: item.color }}>{item.status}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: item.color }}>{item.status}</span>
                   </div>
                 ))}
               </div>
@@ -581,31 +672,40 @@ export default function ZiumFinal() {
         ════════════════════════════════ */}
         {step === 'report' && (
           <div className="px-6 pt-6 pb-40 space-y-5">
-            {/* 피해 요약 — ✅ [FIX 5] 반올림 금액 */}
+            {/* ✅ [2차 FIX 2·3] 위험 점수 중심 히어로 카드 */}
             <div className="scale-in bg-[#191F28] rounded-[32px] p-8 text-center text-white relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-400 to-red-500"></div>
               <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent"></div>
               <div className="relative z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 rounded-full mb-4">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 rounded-full mb-5">
                   <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
-                  <span className="text-[10px] font-bold text-red-400">위험 감지</span>
+                  <span className="text-[10px] font-bold text-red-400">공개 유출 이력 기준</span>
                 </div>
-                <p className="text-gray-400 text-[12px] font-medium mb-2">잠재적 피해 추정액</p>
-                {showPrice ? (
-                  <h2 className="font-black tracking-tighter mb-1">
-                    <span className="text-[24px] align-middle mr-1">약 </span>
-                    <span
-                      className="counter-animate text-[48px] align-middle"
-                      style={{ '--dmg': damageAmount }}
-                    ></span>
-                    <span className="text-[24px] align-middle ml-1">만원</span>
-                  </h2>
-                ) : <div className="h-[60px]"></div>}
-                <p className="text-[9px] text-gray-600 mb-3">유출 사이트당 평균 위자료 판례 + 2차 피해 추정 기준 · 실제 피해와 다를 수 있습니다</p>
-                <div className="flex justify-center gap-6 mt-2 mb-2">
+                <p className="text-gray-400 text-[12px] font-medium mb-2">이메일 보안 점수</p>
+                <div className="flex items-end justify-center gap-2 mb-2">
+                  <span style={{ fontSize: 68, fontWeight: 900, lineHeight: 1, color: getRiskColor(riskScore) }}>{riskScore}</span>
+                  <span className="text-[20px] text-gray-500 pb-2">/ 100</span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-2" style={{ background: getRiskColor(riskScore) + '28' }}>
+                  <span className="text-[15px] font-bold" style={{ color: getRiskColor(riskScore) }}>{getRiskGrade(riskScore)}</span>
+                </div>
+                {/* ✅ [3차 FIX 4] 이전 점수 비교 문구 */}
+                {prevRiskScore !== null && initRiskScore !== null && (
+                  <div className="text-[11px] mb-1" style={{
+                    color: prevRiskScore > initRiskScore ? '#51cf66' : prevRiskScore < initRiskScore ? '#ff6b6b' : '#868e96'
+                  }}>
+                    {prevRiskScore > initRiskScore
+                      ? `지난 점검보다 ${prevRiskScore - initRiskScore}점 낮아졌어요 🎉`
+                      : prevRiskScore < initRiskScore
+                        ? `지난 점검보다 ${initRiskScore - prevRiskScore}점 높아졌어요`
+                        : '지난 점검과 동일한 결과예요'}
+                  </div>
+                )}
+                <p className="text-[9px] text-gray-600 mb-3">공개 유출 이력과 현재 보안 조치 상태를 바탕으로 보여주는 참고용 점수입니다.</p>
+                <div className="flex justify-center gap-6 mb-4">
                   <div className="text-center">
                     <p className="text-[24px] font-black text-red-400">{leakCount}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">유출 사이트</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">유출 이력</p>
                   </div>
                   <div className="w-[1px] bg-white/10"></div>
                   <div className="text-center">
@@ -619,18 +719,17 @@ export default function ZiumFinal() {
                         ? breachData.summary.critical
                         : 0}
                     </p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">긴급 처리 필요</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">즉시 처리 필요</p>
                   </div>
                 </div>
-                {/* ✅ [FIX 8] 공유 버튼 */}
+                <p className="text-[9px] text-gray-600 mb-3">Have I Been Pwned 등 공개 유출 DB 기반 · 조치 완료 시 점수 개선</p>
                 <button onClick={() => {
-                  const pwdCount = breachData ? breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length : 0;
-                  const shareText = '😱 방금 내 개인정보 유출 점검했더니...\n\n' + leakCount + '곳에서 유출됨\n비밀번호 ' + pwdCount + '곳 노출\n\n무료 30초 확인 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
+                  const shareText = '내 이메일 보안 점수 나왔다 😨\n\n📊 ' + riskScore + '점 / 100점 (' + getRiskGrade(riskScore) + ')\n🔍 유출 이력 ' + leakCount + '건 발견\n\n생각보다 위험할 수 있어. 너도 확인해봐 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
                   if (navigator.share) {
-                    navigator.share({ title: '지움 - 개인정보 유출 리포트', text: shareText, url: typeof window !== 'undefined' ? window.location.origin : '' });
+                    navigator.share({ title: '지움 - 이메일 보안 점검 결과', text: shareText, url: typeof window !== 'undefined' ? window.location.origin : '' });
                   } else {
                     navigator.clipboard?.writeText(shareText);
-                    alert('링크가 복사되었습니다!');
+                    showToast('공유 문구가 복사됐습니다');
                   }
                 }} className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full text-[11px] text-gray-300 hover:bg-white/20 transition-all">
                   <ShareIcon /> 결과 공유하기
@@ -709,11 +808,17 @@ export default function ZiumFinal() {
             {/* 섹션 A: 지금 바로 해야 할 일 */}
             {breachData && breachData.breaches && breachData.breaches.length > 0 && (
               <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 20 }}>🚨</span>
-                  <span style={{ fontWeight: 800, fontSize: 18 }}>지금 바로 해야 할 일</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 20 }}>🚨</span>
+                    <span style={{ fontWeight: 800, fontSize: 18 }}>지금 바로 해야 할 일</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#f0f6ff', borderRadius: 20, padding: '4px 10px' }}>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: getRiskColor(riskScore) }}>{riskScore}</span>
+                    <span style={{ fontSize: 10, color: '#6b7684' }}>점</span>
+                  </div>
                 </div>
-                <p style={{ fontSize: 13, color: '#868e96', marginBottom: 20 }}>체크할 때마다 안전점수가 올라갑니다</p>
+                <p style={{ fontSize: 13, color: '#868e96', marginBottom: 20 }}>체크할 때마다 보안 위험 점수가 낮아집니다</p>
 
                 {breachData.breaches.filter(b => b.severity === 'critical').slice(0, 5).map((b, i) => {
                   const key = 'pwd_' + b.name;
@@ -855,6 +960,23 @@ export default function ZiumFinal() {
                     <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>비밀번호 유출되어도 계정을 지킬 수 있어요</div>
                   </div>
                 </div>
+
+                {/* ✅ [2차 FIX 4] 피싱 주의 — 정적 조치 항목 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={phishingChecked}
+                    onChange={() => setPhishingChecked(!phishingChecked)}
+                    style={{ width: 22, height: 22, marginTop: 2, accentColor: '#2563EB', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, textDecoration: phishingChecked ? 'line-through' : 'none', color: phishingChecked ? '#adb5bd' : '#191F28' }}>
+                      피싱 메일 주의사항 확인하기
+                    </div>
+                    <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>수상한 링크 클릭 금지, 발신자 주소 꼭 확인</div>
+                    <a href="https://www.kisa.or.kr/2060304/form?postSeq=14&lang_type=KO" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', fontWeight: 600, textDecoration: 'none', marginTop: 4, display: 'inline-block' }}>피싱 예방 가이드 →</a>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -870,17 +992,32 @@ export default function ZiumFinal() {
                 }}
               >
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 13, color: '#adb5bd', marginBottom: 8 }}>내 개인정보 안전점수</div>
-                  <div
-                    style={{
-                      fontSize: 56,
-                      fontWeight: 900,
-                      color: safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b'
-                    }}
-                  >
-                    {safetyScoreCalc}
+                  <div style={{ fontSize: 13, color: '#adb5bd', marginBottom: 8 }}>보안 조치 달성 점수</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 56,
+                        fontWeight: 900,
+                        lineHeight: 1,
+                        color: safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b'
+                      }}
+                    >
+                      {safetyScoreCalc}
+                    </span>
+                    <span style={{ fontSize: 16, color: '#adb5bd', paddingBottom: 8 }}>/100</span>
                   </div>
-                  <div style={{ fontSize: 14, color: '#adb5bd' }}>/100</div>
+                  <div style={{
+                    display: 'inline-block',
+                    marginTop: 6,
+                    padding: '3px 12px',
+                    borderRadius: 20,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    background: (safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b') + '28',
+                    color: safetyScoreCalc >= 70 ? '#51cf66' : safetyScoreCalc >= 40 ? '#fcc419' : '#ff6b6b'
+                  }}>
+                    {safetyScoreCalc >= 80 ? '안전' : safetyScoreCalc >= 60 ? '양호' : safetyScoreCalc >= 30 ? '주의' : '위험'}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -911,12 +1048,12 @@ export default function ZiumFinal() {
               </div>
             )}
 
-            {/* 섹션 C: 삭제요청 보내기 */}
-            {breachData && breachData.breaches && breachData.breaches.length > 0 && (
+            {/* 섹션 C: 베타에서 비노출 처리 */}
+            {false && breachData && breachData.breaches && breachData.breaches.length > 0 && (
               <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 20 }}>📋</span>
-                  <span style={{ fontWeight: 800, fontSize: 18 }}>삭제요청 보내기</span>
+                  <span style={{ fontWeight: 800, fontSize: 18 }}>삭제 요청 방법 안내</span>
                 </div>
                 <p style={{ fontSize: 13, color: '#868e96', marginBottom: 20 }}>개인정보보호법 제36조에 따라 삭제를 요청할 수 있어요</p>
 
@@ -1055,12 +1192,12 @@ export default function ZiumFinal() {
             <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 20 }}>✨</span>
-                <span style={{ fontWeight: 800, fontSize: 18 }}>지움이 대신 해드리는 일</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>지움이 제공하는 정보</span>
               </div>
               {[
-                { icon: "📋", title: "삭제·비공개 요청 진행", desc: "발견된 항목에 대해 가능한 삭제 또는 비공개 요청을 진행합니다" },
-                { icon: "🔍", title: "주기적 유출 점검 안내", desc: "새로운 유출 여부를 주기적으로 확인하고 안내합니다" },
-                { icon: "📊", title: "진행 상태 리포트 제공", desc: "요청별 진행 상태를 정리하여 안내합니다" },
+                { icon: "🔍", title: "유출 이력 확인", desc: "이메일이 공개 유출 이력에 포함됐는지 확인합니다" },
+                { icon: "📊", title: "위험도 요약 제공", desc: "최근 유출 여부와 노출 데이터 유형을 바탕으로 위험도를 보여줍니다" },
+                { icon: "🛡️", title: "보안 조치 안내", desc: "지금 해야 할 조치를 정리해 안내합니다" },
               ].map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: i < 2 ? '1px solid #f1f3f5' : 'none' }}>
                   <span style={{ fontSize: 22 }}>{item.icon}</span>
@@ -1072,63 +1209,64 @@ export default function ZiumFinal() {
               ))}
             </div>
 
-            {/* 공유 카드 */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #2563EB, #1d4ed8)',
+            {/* ✅ [2차 FIX 6] 공유 가능한 결과 카드 */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 20 }}>📤</span>
+                <span style={{ fontWeight: 800, fontSize: 18 }}>결과를 공유해보세요</span>
+              </div>
+
+              {/* 비주얼 결과 카드 */}
+              <div style={{
+                background: 'linear-gradient(135deg, #191F28 0%, #2d3748 100%)',
                 borderRadius: 16,
-                padding: '28px 24px',
+                padding: '22px 20px',
                 marginBottom: 16,
                 color: '#fff',
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 15, opacity: 0.9, marginBottom: 8 }}>내 유출 결과를 공유하고</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>주변 사람들도 확인시키세요</div>
-              <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>이미 {preregCount.toLocaleString()}명이 확인했어요</div>
-
-              {breachData && breachData.breaches && breachData.breaches.length > 0 && (
-                <div
-                  style={{
-                    background: '#f1f3f5',
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 16,
-                    textAlign: 'left',
-                    fontSize: 13,
-                    color: '#495057'
-                  }}
-                >
-                  {(() => {
-                    const pwdCount = breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length;
-                    return `내 개인정보가 ${leakCount}곳에서 유출! 비밀번호 ${pwdCount}곳 노출. 당신은 안전한가요?`;
-                  })()}
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(to right, #e03131, #e67700, #e03131)' }}></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 20, letterSpacing: '-0.5px' }}>ZIUM</div>
+                    <div style={{ fontSize: 11, color: '#6b7684', marginTop: 2 }}>이메일 보안 건강검진</div>
+                  </div>
+                  <div style={{ background: getRiskColor(riskScore) + '30', borderRadius: 8, padding: '5px 12px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: getRiskColor(riskScore) }}>{getRiskGrade(riskScore)} 위험</span>
+                  </div>
                 </div>
-              )}
+                {email && (
+                  <div style={{ fontSize: 12, color: '#868e96', marginBottom: 6 }}>
+                    {email.replace(/^(.).*(@.*)$/, '$1***$2')}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 6 }}>
+                  <span style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: getRiskColor(riskScore) }}>{riskScore}</span>
+                  <span style={{ fontSize: 16, color: '#6b7684', paddingBottom: 5 }}>점</span>
+                </div>
+                <div style={{ fontSize: 13, color: '#adb5bd', marginBottom: 14 }}>이메일 보안 점수 · {getRiskGrade(riskScore)}</div>
+                <div style={{ fontSize: 12, color: '#adb5bd', marginBottom: 12, fontStyle: 'italic' }}>
+                  생각보다 위험할 수 있습니다
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: '#868e96' }}>유출 이력 {leakCount}건 발견</span>
+                  <span style={{ fontSize: 12, color: '#3182F6', fontWeight: 600 }}>zium.vercel.app</span>
+                </div>
+              </div>
 
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                 <button
                   onClick={() => {
-                    const pwdCount = breachData ? breachData.breaches.filter(b => (b.dataClasses || []).some(dc => dc.toLowerCase().includes('password'))).length : 0;
-                    const text = '😱 방금 내 개인정보 유출 점검했더니...\n\n' + leakCount + '곳에서 유출됨\n비밀번호 ' + pwdCount + '곳 노출\n\n무료 30초 확인 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
+                    const shareText = '내 이메일 보안 점수 나왔다 😨\n\n📊 ' + riskScore + '점 / 100점 (' + getRiskGrade(riskScore) + ')\n🔍 유출 이력 ' + leakCount + '건 발견\n\n생각보다 위험할 수 있어. 너도 확인해봐 👇\n' + (typeof window !== 'undefined' ? window.location.origin : '');
                     if (navigator.share) {
-                      navigator.share({ title: '지움 - 개인정보 유출 점검', text: text });
+                      navigator.share({ title: '지움 - 이메일 보안 점검 결과', text: shareText });
                     } else {
-                      navigator.clipboard.writeText(text);
-                      alert('공유 텍스트가 복사되었습니다!');
+                      navigator.clipboard.writeText(shareText);
+                      showToast('공유 문구가 복사됐습니다');
                     }
                   }}
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    background: 'rgba(255,255,255,0.2)',
-                    color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
+                  style={{ flex: 1, padding: '14px', background: '#191F28', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
                 >
                   📤 공유하기
                 </button>
@@ -1136,31 +1274,26 @@ export default function ZiumFinal() {
                   onClick={() => {
                     const url = typeof window !== 'undefined' ? window.location.origin : 'https://zium-eight.vercel.app';
                     navigator.clipboard.writeText(url);
-                    alert('링크가 복사되었습니다!');
+                    showToast('공유 문구가 복사됐습니다');
                   }}
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    background: '#fff',
-                    color: '#2563EB',
-                    border: 'none',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
+                  style={{ flex: 1, padding: '14px', background: '#f0f6ff', color: '#2563EB', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
                 >
                   🔗 링크 복사
                 </button>
               </div>
+              <div style={{ textAlign: 'center', fontSize: 11, color: '#adb5bd' }}>
+                이미 {preregCount.toLocaleString()}명이 확인했어요
+              </div>
             </div>
 
-            {/* 알림 등록 */}
+            {/* ✅ [3차 FIX 5] 30일 후 재점검 알림 등록 */}
             <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 32 }}>
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <span style={{ fontSize: 32 }}>🔔</span>
-                <div style={{ fontWeight: 800, fontSize: 18, marginTop: 8 }}>새 유출 발생 시 알림 받기</div>
-                <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>새로운 해킹 사고에 내 정보가 포함되면 바로 알려드려요</div>
+                <span style={{ fontSize: 32 }}>📅</span>
+                <div style={{ fontWeight: 800, fontSize: 18, marginTop: 8 }}>30일 후 다시 점검하기</div>
+                <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>
+                  이메일을 등록하면 30일 후 다시 점검할 수 있도록 안내해드려요
+                </div>
               </div>
               {!preregDone ? (
                 <div>
@@ -1181,42 +1314,64 @@ export default function ZiumFinal() {
                   />
                   <button
                     onClick={handlePreregister}
+                    disabled={preregLoading}
                     style={{
                       width: '100%',
                       padding: '16px',
-                      background: '#191F28',
+                      background: preregLoading ? '#868e96' : '#191F28',
                       color: '#fff',
                       border: 'none',
                       borderRadius: 12,
                       fontSize: 16,
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: preregLoading ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.2s'
                     }}
                   >
-                    무료 알림 등록하기
+                    {preregLoading ? '등록 중...' : '30일 후 재점검 알림 등록'}
                   </button>
+                  {preregError && (
+                    <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#e03131', fontWeight: 500 }}>
+                      {preregError}
+                    </div>
+                  )}
+                  <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#adb5bd' }}>
+                    무료 · 광고 없음 · 언제든 해제 가능
+                  </div>
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
                   <div style={{ fontWeight: 700, color: '#2563EB' }}>등록 완료!</div>
-                  <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>{preregEmail}로 알림을 보내드릴게요</div>
+                  <div style={{ fontSize: 13, color: '#868e96', marginTop: 4 }}>
+                    {preregEmail}로 30일 후 재점검 알림을 보내드릴게요
+                  </div>
                 </div>
               )}
+            </div>
+
+            {/* ✅ [2차 FIX 8] 재확인 흐름 */}
+            <div style={{ textAlign: 'center', paddingBottom: 16 }}>
+              <button
+                onClick={() => navigateTo('landing')}
+                style={{ fontSize: 13, color: '#868e96', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                다른 이메일로 다시 확인하기
+              </button>
             </div>
           </div>
         )}
 
         {/* ════════════════════════════════
-            STEP 3.2: 무료 삭제요청 템플릿 (deleteKit) — OpenAI 체리픽
+            STEP 3.2: deleteKit — 베타에서 비노출 처리
         ════════════════════════════════ */}
-        {step === 'deleteKit' && (
+        {false && step === 'deleteKit' && (
           <div className="px-6 pt-6 pb-10 space-y-5">
             <div className="fade-up space-y-2">
-              <h2 className="text-[22px] font-black tracking-tight">무료 삭제요청 템플릿</h2>
+              <h2 className="text-[22px] font-black tracking-tight">직접 문의할 때 참고할 수 있는 예시 문구</h2>
               <p className="text-[13px] text-[#6B7684]">
-                가장 흔한 <span className="font-bold">1가지 케이스</span>에 대해 삭제요청 문구를 제공합니다.
-                <br /><span className="text-[11px] text-gray-400">※ 실제 처리 여부/기간은 사이트 정책에 따라 다를 수 있어요.</span>
+                사이트에 직접 문의할 때 활용할 수 있는 <span className="font-bold">예시 문구</span>를 제공합니다.
+                <br /><span className="text-[11px] text-gray-400">※ 처리 여부·기간은 각 사이트 정책에 따라 다를 수 있어요.</span>
               </p>
             </div>
 
@@ -1226,13 +1381,13 @@ export default function ZiumFinal() {
                 <span className="text-[10px] text-gray-400">무료 · 1건</span>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-[12px] font-bold text-[#191F28]">게시글/프로필 페이지 노출 삭제 요청</p>
-                <p className="text-[11px] text-gray-500 mt-1">내 연락처/이메일이 포함된 게시글·댓글·소개글 등에 사용하세요.</p>
+                <p className="text-[12px] font-bold text-[#191F28]">개인정보 노출 페이지 문의 예시</p>
+                <p className="text-[11px] text-gray-500 mt-1">내 연락처·이메일이 포함된 게시글이나 페이지에 직접 문의할 때 참고하세요.</p>
               </div>
             </div>
 
             <div className="fade-up-2 bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-3">
-              <p className="font-bold text-[14px]">삭제요청 메시지 (복사해서 발송)</p>
+              <p className="font-bold text-[14px]">문의 예시 문구 (복사해서 활용하세요)</p>
               <div className="bg-gray-50 rounded-2xl p-4 text-[11px] text-[#4E5968] leading-relaxed whitespace-pre-wrap">{`안녕하세요. (담당자/운영자)님,
 
 저는 귀 사이트/페이지에 게시된 내용 중 제 개인정보가 포함된 부분에 대해 삭제를 요청드립니다.
@@ -1261,7 +1416,7 @@ export default function ZiumFinal() {
                 </button>
                 <button onClick={() => { trackEvent('deletekit_to_pricing'); navigateTo('pricing'); }}
                   className="flex-1 py-3 bg-white text-[#3182F6] font-bold rounded-2xl text-[13px] border border-blue-100">
-                  모니터링/대행 맡기기
+                  보안 서비스 알아보기
                 </button>
               </div>
 
@@ -1273,11 +1428,11 @@ export default function ZiumFinal() {
             <div className="fade-up-3 bg-[#F0F6FF] rounded-[24px] p-5 space-y-2">
               <p className="text-[12px] font-bold text-[#3182F6]">더 많은 사이트에 대응하려면?</p>
               <p className="text-[11px] text-[#6B7684] leading-relaxed">
-                사전 등록하시면 정식 출시 시 자동 모니터링 + 삭제 대행 기능을 첫 달 무료로 이용할 수 있습니다.
+                사전 등록하시면 서비스 출시 소식과 업데이트를 가장 먼저 받아보실 수 있습니다.
               </p>
               <button onClick={() => navigateTo('pricing')}
                 className="w-full py-3 bg-[#3182F6] text-white font-bold rounded-2xl text-[13px] mt-2">
-                사전등록하고 첫 달 무료 받기
+                출시 알림 받기 (무료)
               </button>
             </div>
 
@@ -1364,7 +1519,7 @@ export default function ZiumFinal() {
                     <span className="font-bold text-[15px]">연간 구독</span>
                     <span className="text-[10px] font-bold text-[#3182F6] bg-blue-100 px-2 py-0.5 rounded-full">36% 할인</span>
                   </div>
-                  <p className="text-[11px] text-[#6B7684] mt-0.5">1년 동안 내 개인정보를 지켜드립니다</p>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">1년 동안 이메일 보안 상태를 점검해드립니다</p>
                 </div>
               </div>
               <div className="mt-3 pl-8">
@@ -1375,7 +1530,7 @@ export default function ZiumFinal() {
                 <p className="text-[11px] text-gray-400 mt-0.5">연 29,900원 일시 결제</p>
               </div>
               <div className="mt-3 pl-8 flex flex-wrap gap-2">
-                {['삭제 증명서 무제한', '가족 1명 추가 무료', '우선 처리'].map((b, i) => (
+                {['점검 리포트 무제한', '가족 1명 추가 무료', '우선 점검'].map((b, i) => (
                   <span key={i} className="text-[10px] font-medium text-[#3182F6] bg-white/80 px-2.5 py-1 rounded-lg border border-blue-100">{b}</span>
                 ))}
               </div>
@@ -1391,7 +1546,7 @@ export default function ZiumFinal() {
                 }`}>{selectedPlan === 'monthly' && <CheckIcon />}</div>
                 <div className="flex-1">
                   <span className="font-bold text-[15px]">월간 구독</span>
-                  <p className="text-[11px] text-[#6B7684] mt-0.5">삭제 + 모니터링 + 신규 유출 자동 대응</p>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">정기 재점검 + 보안 조치 알림</p>
                 </div>
               </div>
               <div className="mt-3 pl-8">
@@ -1411,8 +1566,8 @@ export default function ZiumFinal() {
                   selectedPlan === 'onetime' ? 'border-[#3182F6] bg-[#3182F6]' : 'border-gray-300'
                 }`}>{selectedPlan === 'onetime' && <CheckIcon />}</div>
                 <div className="flex-1">
-                  <span className="font-bold text-[15px]">1회 삭제</span>
-                  <p className="text-[11px] text-[#6B7684] mt-0.5">현재 유출된 곳만 삭제 (모니터링 없음)</p>
+                  <span className="font-bold text-[15px]">1회 점검</span>
+                  <p className="text-[11px] text-[#6B7684] mt-0.5">현재 유출 이력 1회 확인</p>
                 </div>
               </div>
               <div className="mt-3 pl-8">
@@ -1423,7 +1578,7 @@ export default function ZiumFinal() {
               </div>
               <div className="mt-2 pl-8">
                 <p className="text-[11px] text-orange-500 font-medium flex items-center gap-1">
-                  <AlertIcon /> 삭제 후에도 재유출 가능성 있음 (모니터링 미포함)
+                  <AlertIcon /> 정기 점검 없이 1회 확인만 제공됩니다
                 </p>
               </div>
             </div>
@@ -1439,12 +1594,12 @@ export default function ZiumFinal() {
               </div>
               <div className="space-y-2.5">
                 {[
-                  { feature: "현재 유출 전체 삭제", onetime: true, monthly: true, annual: true },
-                  { feature: "24시간 실시간 모니터링", onetime: false, monthly: true, annual: true },
-                  { feature: "신규 유출 자동 삭제", onetime: false, monthly: true, annual: true },
-                  { feature: "삭제 완료 증명서", onetime: "1회", monthly: "월 3회", annual: "무제한" },
+                  { feature: "유출 이력 전체 확인", onetime: true, monthly: true, annual: true },
+                  { feature: "정기 재점검 알림", onetime: false, monthly: true, annual: true },
+                  { feature: "신규 유출 발생 시 알림", onetime: false, monthly: true, annual: true },
+                  { feature: "점검 결과 리포트", onetime: "1회", monthly: "월 3회", annual: "무제한" },
                   { feature: "가족 추가 (1명)", onetime: false, monthly: false, annual: true },
-                  { feature: "우선 처리", onetime: false, monthly: false, annual: true },
+                  { feature: "우선 점검", onetime: false, monthly: false, annual: true },
                 ].map((row, i) => (
                   <div key={i} className="flex items-center text-[11px]">
                     <span className="flex-1 text-[#4E5968] font-medium">{row.feature}</span>
@@ -1458,13 +1613,18 @@ export default function ZiumFinal() {
               </div>
             </div>
 
+            {/* 베타 disclaimer */}
+            <p className="text-center text-[10px] text-gray-400 px-2 leading-relaxed">
+              베타 기간 중 제공 내용과 가격은 변경될 수 있습니다.
+            </p>
+
             {/* 사전등록 CTA */}
             <div className="fade-up-6 space-y-4 pt-2">
               {!preregDone ? (
                 <div className="bg-white rounded-[24px] p-6 border-2 border-[#3182F6] shadow-lg shadow-blue-100/30 space-y-4">
                   <div className="text-center space-y-1">
                     <p className="text-[15px] font-black text-[#191F28]">🚀 곧 출시됩니다</p>
-                    <p className="text-[12px] text-[#6B7684]">사전 등록하면 <span className="font-bold text-[#3182F6]">첫 달 무료</span> + 출시 알림을 드려요</p>
+                    <p className="text-[12px] text-[#6B7684]">사전 등록하면 출시 알림과 업데이트 소식을 먼저 받아보실 수 있어요</p>
                   </div>
                   <input
                     type="email"
@@ -1499,17 +1659,17 @@ export default function ZiumFinal() {
                   <div>
                     <p className="text-[17px] font-black text-[#191F28]">등록 완료!</p>
                     <p className="text-[13px] text-[#6B7684] mt-1">출시되면 <span className="font-bold">{preregEmail}</span>로 알려드릴게요.</p>
-                    <p className="text-[12px] text-[#3182F6] font-bold mt-2">🎁 사전 등록 특전: 첫 달 무료</p>
+                    <p className="text-[12px] text-[#3182F6] font-bold mt-2">사전 등록자에게 가장 먼저 안내해드릴게요 🎁</p>
                   </div>
                   <div className="pt-2">
                     <p className="text-[11px] text-gray-400">{preregCount}명이 함께 기다리고 있어요</p>
                   </div>
                   <button onClick={() => {
                     if (navigator.share) {
-                      navigator.share({ title: '지움 - 내 개인정보 삭제 서비스', text: `내 개인정보가 ${leakCount}곳에서 유출되고 있었어! 무료로 확인해봐 →`, url: window.location.origin });
+                      navigator.share({ title: '지움 - 이메일 보안 점검', text: `내 이메일이 ${leakCount}건의 유출 이력에 포함됐어! 무료로 확인해봐 →`, url: window.location.origin });
                     } else {
                       navigator.clipboard?.writeText(`내 개인정보가 유출되고 있을 수 있어요. 무료로 확인해보세요 → ${window.location.origin}`);
-                      alert('링크가 복사되었습니다!');
+                      showToast('공유 문구가 복사됐습니다');
                     }
                     trackEvent('share_after_prereg');
                   }} className="w-full py-3 bg-white text-[#3182F6] font-bold rounded-2xl text-[13px] border border-blue-100 flex items-center justify-center gap-2">
@@ -1530,13 +1690,13 @@ export default function ZiumFinal() {
                   <span className="font-bold">월 3,900원</span>
                 </div>
                 <div className="flex justify-between text-[12px]">
-                  <span className="text-[#4E5968]">1회 삭제</span>
+                  <span className="text-[#4E5968]">1회 점검</span>
                   <span className="font-bold">19,900원</span>
                 </div>
               </div>
 
               <div className="flex items-center justify-center gap-3 text-[10px] text-gray-400">
-                <span>언제든 해지 가능</span><span>·</span><span>삭제 안 되면 100% 환불</span>
+                <span>언제든 알림 해제 가능</span><span>·</span><span>출시 전 사전 등록 단계</span>
               </div>
               <div className="text-center">
                 <span className="text-[10px] text-gray-400">
@@ -1639,8 +1799,8 @@ export default function ZiumFinal() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-lg">📄</div>
                   <div>
-                    <p className="text-[13px] font-bold">삭제 완료 증명서</p>
-                    <p className="text-[10px] text-gray-400">2곳 삭제 완료 건에 대한 증빙</p>
+                    <p className="text-[13px] font-bold">점검 결과 리포트</p>
+                    <p className="text-[10px] text-gray-400">이번 점검 결과에 대한 요약 리포트</p>
                   </div>
                 </div>
                 <button className="px-3 py-1.5 bg-gray-50 rounded-lg text-[11px] font-bold text-[#4E5968]">다운로드</button>
@@ -1675,35 +1835,33 @@ export default function ZiumFinal() {
             <div className="bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-4 text-[12px] text-[#4E5968] leading-relaxed">
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">1. 수집하는 개인정보 항목</p>
-                <p>필수: 이메일 주소 또는 전화번호 (유출 여부 조회 목적)</p>
-                <p>유료 구독 시 추가: 이름, 결제 정보 (삭제 위임 및 결제 처리 목적)</p>
+                <p>이메일 주소 (유출 이력 확인 및 재점검 알림 등록 목적)</p>
+                <p className="mt-1 text-[11px] text-gray-400">※ 본 서비스는 이메일 유출 진단에 한해 운영되며, 결제 정보 등 추가 정보는 수집하지 않습니다.</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">2. 수집·이용 목적</p>
-                <p>개인정보 유출 여부 조회, 유출 사이트에 대한 법적 삭제 요청 대행, 삭제 결과 통지, 실시간 모니터링 및 알림, 서비스 개선을 위한 통계 분석</p>
+                <p>이메일 유출 이력 확인 및 결과 제공, 재점검 알림 등록 및 안내 발송, 서비스 개선을 위한 최소한의 이용 통계 분석</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">3. 보유 및 이용 기간</p>
-                <p>무료 조회: 조회 완료 즉시 파기</p>
-                <p>유료 구독: 구독 해지 후 30일 이내 파기 (단, 법령에 따른 보존 의무가 있는 경우 해당 기간까지 보존)</p>
-                <p>전자상거래 거래 기록: 5년 (전자상거래법 제6조)</p>
+                <p>유출 이력 조회: 조회 완료 즉시 파기</p>
+                <p>재점검 알림 등록: 등록 해제 요청 시 파기</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">4. 제3자 제공</p>
-                <p>원칙적으로 제3자에게 제공하지 않습니다. 다만 삭제 요청 대행을 위해 유출 사이트 운영자에게 최소한의 본인 확인 정보를 전달할 수 있으며, 이 경우 사전에 별도 동의를 받습니다.</p>
+                <p>원칙적으로 제3자에게 제공하지 않습니다.</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">5. 처리 위탁</p>
-                <p>결제 처리: 토스페이먼츠 주식회사</p>
                 <p>클라우드 호스팅: Vercel Inc. (미국)</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">6. 정보주체의 권리</p>
-                <p>개인정보 열람·정정·삭제·처리정지 요구권 (개인정보보호법 제35~37조). 아래 연락처로 요청하시면 10일 이내 처리합니다.</p>
+                <p>이메일 주소 삭제 요청 등 개인정보 관련 문의는 아래 연락처로 요청하시면 처리합니다. (개인정보보호법 제35~37조)</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">7. 안전성 확보 조치</p>
-                <p>개인정보 암호화(AES-256), SSL/TLS 통신 암호화, 접근 권한 관리 및 접근 기록 보관, 정기적 보안 점검</p>
+                <p>SSL/TLS 통신 암호화, 접근 권한 관리</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">8. 개인정보 보호책임자</p>
@@ -1711,7 +1869,7 @@ export default function ZiumFinal() {
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">9. 시행일</p>
-                <p>본 방침은 2026년 2월 22일부터 시행됩니다.</p>
+                <p>본 방침은 2026년 3월 9일부터 시행됩니다.</p>
               </div>
             </div>
           </div>
@@ -1726,45 +1884,45 @@ export default function ZiumFinal() {
             <div className="bg-white rounded-[24px] p-5 border border-gray-100 shadow-sm space-y-4 text-[12px] text-[#4E5968] leading-relaxed">
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">제1조 (목적)</p>
-                <p>본 약관은 지움(이하 "회사")이 제공하는 개인정보 삭제 대행 서비스(이하 "서비스")의 이용 조건 및 절차에 관한 사항을 규정함을 목적으로 합니다.</p>
+                <p>본 약관은 지움(이하 "회사")이 제공하는 이메일 유출 진단 서비스(이하 "서비스")의 이용 조건에 관한 사항을 규정함을 목적으로 합니다.</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">제2조 (서비스 내용)</p>
-                <p>① 회사는 이용자의 위임에 따라 개인정보보호법 제36조에 근거한 개인정보 삭제 요청을 대행합니다.</p>
-                <p>② 삭제 요청의 처리 여부는 해당 사이트 운영자의 대응에 따라 달라질 수 있으며, 회사는 최선의 노력을 다하되 삭제 완료를 보장하지 않습니다.</p>
+                <p>① 서비스는 공개된 유출 이력을 바탕으로 이메일 유출 여부를 확인하고, 위험도 및 보안 조치 가이드를 제공합니다.</p>
+                <p>② 서비스 결과는 공개된 유출 이력 기반의 참고용 진단 정보입니다. 알려지지 않은 유출이나 모든 보안 위험을 완전히 보여주지 않을 수 있습니다.</p>
               </div>
               <div>
-                <p className="font-bold text-[13px] text-[#191F28] mb-1">제3조 (이용 요금 및 결제)</p>
-                <p>① 서비스 요금은 서비스 내 표시된 금액에 따릅니다.</p>
-                <p>② 연간 구독은 결제일로부터 12개월간 유효하며, 별도 해지 요청이 없으면 자동 갱신됩니다.</p>
-                <p>③ 월간 구독은 매월 결제일에 자동 결제됩니다.</p>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제3조 (재점검 알림)</p>
+                <p>① 이용자는 원할 경우 이메일을 등록하여 재점검 시점 안내를 받을 수 있습니다.</p>
+                <p>② 알림 등록은 언제든 해제할 수 있습니다.</p>
               </div>
               <div>
-                <p className="font-bold text-[13px] text-[#191F28] mb-1">제4조 (환불 정책)</p>
-                <p>① 결제 후 7일 이내이며 삭제 요청이 미착수된 경우: 전액 환불</p>
-                <p>② 삭제 요청이 부분 완료된 경우: 미처리 건에 대해 비례 환불</p>
-                <p>③ 삭제 요청이 전체 완료된 경우: 환불 불가</p>
-                <p>④ 30일 이내 삭제 처리가 착수되지 않은 경우: 전액 환불</p>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제4조 (이용자 책임)</p>
+                <p>① 이용자는 본인의 이메일 주소만 진단 목적으로 사용하여야 합니다.</p>
+                <p>② 결과 해석 및 후속 보안 조치의 최종 판단과 실행은 이용자의 책임입니다.</p>
               </div>
               <div>
-                <p className="font-bold text-[13px] text-[#191F28] mb-1">제5조 (해지)</p>
-                <p>① 이용자는 언제든 서비스 내에서 1클릭으로 구독을 해지할 수 있습니다.</p>
-                <p>② 해지 시 이미 삭제 완료된 건은 유지되며, 모니터링 서비스가 중단됩니다.</p>
-                <p>③ 해지 후 잔여 기간에 대한 환불은 제4조에 따릅니다.</p>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제5조 (서비스 변경·중단)</p>
+                <p>① 회사는 베타 서비스 특성상 사전 고지 없이 서비스 일부 기능을 변경하거나 중단할 수 있습니다.</p>
+                <p>② 중요한 변경 사항은 서비스 내 공지 또는 등록된 이메일로 안내합니다.</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">제6조 (면책)</p>
-                <p>① 회사는 유출 사이트의 비협조, 기술적 장애 등 회사의 통제 범위를 벗어난 사유로 삭제가 지연되거나 불가능한 경우 책임을 지지 않습니다.</p>
-                <p>② 무료 조회 결과는 외부 데이터베이스 기반 추정치이며, 실제 유출 현황과 다를 수 있습니다.</p>
-                <p>③ 잠재적 피해 추정액은 과거 판례 및 통계를 기반으로 한 참고용 수치이며, 법적 효력이 없습니다.</p>
+                <p>① 서비스의 결과와 점수는 공개된 유출 이력 기반 참고용 정보이며, 실제 유출 현황과 다를 수 있습니다.</p>
+                <p>② 서비스는 모든 보안 사고 예방이나 특정 결과를 보장하지 않습니다.</p>
+                <p>③ 서비스는 법률·보안 전문가의 개별 자문을 대체하지 않습니다.</p>
               </div>
               <div>
-                <p className="font-bold text-[13px] text-[#191F28] mb-1">제7조 (분쟁 해결)</p>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제7조 (문의)</p>
+                <p>서비스 관련 문의: privacy@zium.kr</p>
+              </div>
+              <div>
+                <p className="font-bold text-[13px] text-[#191F28] mb-1">제8조 (분쟁 해결)</p>
                 <p>본 약관에 관한 분쟁은 회사의 소재지를 관할하는 법원을 전속 관할 법원으로 합니다.</p>
               </div>
               <div>
                 <p className="font-bold text-[13px] text-[#191F28] mb-1">부칙</p>
-                <p>본 약관은 2026년 2월 22일부터 시행됩니다.</p>
+                <p>본 약관은 2026년 3월 9일부터 시행됩니다.</p>
               </div>
             </div>
           </div>
